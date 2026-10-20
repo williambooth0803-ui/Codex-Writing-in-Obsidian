@@ -13,8 +13,11 @@ const { spawn } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
+const REVIEW_SCHEMA = {"type":"object","additionalProperties":false,"properties":{"reviews":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"comments":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"category":{"type":"string","enum":["reasoning","question","verify","clarity"]},"quote":{"type":"string"},"comment":{"type":"string"}},"required":["category","quote","comment"]}}},"required":["id","comments"]}}},"required":["reviews"]};
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 24);
-const DEFAULTS = Object.freeze({ enabled: true, codexPath: '/opt/homebrew/bin/codex',
+const DEFAULTS = Object.freeze({ enabled: false, consentGranted: false, codexPath: '',
   focus: 'understanding', pauseMs: 8000, idleMs: 30000, minIntervalMs: 30000,
   batchSize: 3, minChars: 40, maxChars: 5000, maxContextChars: 8000,
   maxComments: 2, onlyFile: '', excludedFolders: ['Templates', 'Attachments'],
@@ -25,11 +28,12 @@ function settingsWithDefaults(input = {}) {
   for (const [key, min, max] of [['pauseMs',2000,120000],['idleMs',5000,300000],
     ['minIntervalMs',0,300000],['batchSize',1,5],['minChars',20,500],
     ['maxChars',500,10000],['maxContextChars',0,20000],['maxComments',1,3],['timeoutMs',10000,300000]]) {
-    s[key] = Math.max(min, Math.min(max, Number(s[key]) || DEFAULTS[key]));
-    if (key === 'minIntervalMs' && input[key] === 0) s[key] = 0;
+    const value=Number(s[key]);
+    s[key] = Math.max(min, Math.min(max, Number.isFinite(value) ? value : DEFAULTS[key]));
   }
   s.focus = ['understanding','clarity','both'].includes(s.focus) ? s.focus : DEFAULTS.focus;
   s.excludedFolders = Array.isArray(s.excludedFolders) ? s.excludedFolders.filter(x => typeof x === 'string') : DEFAULTS.excludedFolders;
+  s.codexPath = typeof s.codexPath === 'string' ? s.codexPath.trim() : '';
   s.customInstructions = String(s.customInstructions || '').slice(0, 2000);
   return s;
 }
@@ -106,8 +110,46 @@ function feedbackRanges(text, results, settings = DEFAULTS) {
   return ranges.sort((a,b) => a.from - b.from || a.to - b.to);
 }
 
+function runLocalCommand(binary,args,{timeoutMs=6000,env=process.env}={}) {
+  return new Promise(resolve=>{
+    let stdout='',stderr='',finished=false,child,timer,killTimer;
+    const finish=result=>{if(finished)return;finished=true;clearTimeout(timer);resolve({...result,stdout,stderr});};
+    try { child=spawn(binary,args,{env,stdio:['ignore','pipe','pipe'],windowsHide:true}); }
+    catch(error) { finish({code:null,error:error.code||error.message});return; }
+    timer=setTimeout(()=>{
+      child.kill('SIGTERM');killTimer=setTimeout(()=>child.kill('SIGKILL'),2000);killTimer.unref();
+      finish({code:null,error:'Command timed out.'});
+    },timeoutMs);
+    child.stdout.on('data',chunk=>{stdout=(stdout+chunk).slice(-16000);});
+    child.stderr.on('data',chunk=>{stderr=(stderr+chunk).slice(-16000);});
+    child.on('error',error=>finish({code:null,error:error.code||error.message}));
+    child.on('close',code=>{clearTimeout(killTimer);finish({code});});
+  });
+}
+async function discoverCodex(configured='',options={}) {
+  const home=options.home||os.homedir(),platform=options.platform||process.platform;
+  const env=options.env||process.env,runner=options.run||runLocalCommand;
+  const candidates=configured?[configured]:[
+    'codex',...String(env.PATH||'').split(path.delimiter).filter(Boolean).map(dir=>path.join(dir,platform==='win32'?'codex.exe':'codex')),
+    '/opt/homebrew/bin/codex','/usr/local/bin/codex',path.join(home,'.local','bin','codex'),
+    path.join(home,'.npm-global','bin','codex'),path.join(home,'scoop','shims','codex.exe')];
+  for(const binary of [...new Set(candidates)]){
+    const version=await runner(binary,['--version'],{env});
+    if(version.code!==0||!/codex/i.test(version.stdout+version.stderr))continue;
+    const help=await runner(binary,['exec','--help'],{env});
+    if(help.code!==0||!['--output-schema','--ignore-user-config','--ephemeral'].every(flag=>(help.stdout+help.stderr).includes(flag)))
+      return {ready:false,binary,version:version.stdout.trim(),message:'Update the Codex CLI: this version lacks required review options.'};
+    const login=await runner(binary,['login','status'],{env});
+    const loggedIn=login.code===0&&!/not logged in|not authenticated/i.test(login.stdout+login.stderr);
+    return {ready:loggedIn,binary,version:(version.stdout||version.stderr).trim(),message:loggedIn?
+      'Codex is installed and signed in.':'Codex needs sign-in. Run codex login in your terminal, then check the connection again.'};
+  }
+  return {ready:false,binary:configured,message:configured?'The selected Codex executable could not run. Check its full path.':
+    'Codex CLI was not found. Install it from the official Codex documentation, sign in with codex login, then check again.'};
+}
+
 class CodexReviewer {
-  constructor({ binary = DEFAULTS.codexPath, cwd = __dirname, timeoutMs = DEFAULTS.timeoutMs } = {}) {
+  constructor({ binary = DEFAULTS.codexPath || 'codex', cwd = __dirname, timeoutMs = DEFAULTS.timeoutMs } = {}) {
     Object.assign(this, { binary, cwd, timeoutMs }); this.children = new Set();
   }
   async review(paragraph, context) {
@@ -129,12 +171,17 @@ Include every target id exactly once. Return only JSON conforming to the schema.
 WRITER_PREFERENCES: ${JSON.stringify(settings.customInstructions)}
 NOTE_DATA: ${JSON.stringify({ context, targets })}`;
     return new Promise((resolve, reject) => {
-      const start = performance.now(); let output = '', errorText = '', timedOut = false, settled = false;
-      const child = spawn(this.binary, ['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check',
+      const schemaDir=fs.mkdtempSync(path.join(os.tmpdir(),'obsidian-paragraph-review-'));
+      const schemaPath=path.join(schemaDir,'schema.json');
+      try { fs.writeFileSync(schemaPath,JSON.stringify(REVIEW_SCHEMA),{mode:0o600}); }
+      catch(error) { fs.rmSync(schemaDir,{recursive:true,force:true}); reject(error); return; }
+      const start = performance.now(); let output = '', errorText = '', timedOut = false, outputLimit = false, settled = false, child;
+      try { child = spawn(this.binary, ['exec','--ignore-user-config','--ephemeral','--skip-git-repo-check',
         '--sandbox','read-only','--disable','shell_tool','--disable','unified_exec','--disable','apps',
         '-c','web_search="disabled"','-c','model_reasoning_effort="low"','--json',
-        '--output-schema',path.join(this.cwd,'review-schema.json'),'-'],
-        { cwd: this.cwd, stdio: ['pipe','pipe','pipe'], env: { ...process.env, NO_COLOR: '1' } });
+        '--output-schema',schemaPath,'-'],
+        { cwd: this.cwd, stdio: ['pipe','pipe','pipe'], windowsHide:true, env: { ...process.env, NO_COLOR: '1' } }); }
+      catch(error) { fs.rmSync(schemaDir,{recursive:true,force:true});reject(error);return; }
       this.children.add(child);
       let killTimer;
       const timeout = setTimeout(() => {
@@ -142,17 +189,21 @@ NOTE_DATA: ${JSON.stringify({ context, targets })}`;
       }, this.timeoutMs);
       function finish(error, answer) {
         if (settled) return; settled = true; clearTimeout(timeout); clearTimeout(killTimer);
+        try { fs.rmSync(schemaDir,{recursive:true,force:true}); } catch {}
         error ? reject(error) : resolve(answer);
       }
       child.stdout.on('data', chunk => {
         output += chunk;
-        if (output.length > 2000000) { child.kill('SIGTERM'); finish(new Error('Review response exceeded the output limit.')); }
+        if (output.length > 2000000 && !outputLimit) {
+          outputLimit=true;output='';child.kill('SIGTERM');killTimer=setTimeout(()=>child.kill('SIGKILL'),2000);
+        }
       });
       child.stderr.on('data', chunk => { errorText = (errorText + chunk).slice(-6000); });
       child.stdin.on('error', () => {});
       child.on('error', error => { this.children.delete(child); finish(error); });
       child.on('close', (code, signal) => {
         this.children.delete(child);
+        if(outputLimit)return finish(new Error('Review response exceeded the output limit.'));
         if (code !== 0) {
           const message = timedOut ? 'Review timed out.' : signal ? 'Review cancelled.' :
             /rate.?limit|usage limit|quota/i.test(errorText) ? 'Codex usage limit reached.' :
@@ -239,9 +290,10 @@ class ReviewEngine extends EventEmitter {
     this.emit('started',{ count:valid.length, file:first.file });
     try {
       const context=blocks(note.text.slice(0,valid[0].paragraph.from),{minChars:1,maxChars:20000})
-        .map(b=>b.text).join('\n\n').slice(-this.settings.maxContextChars);
+        .map(b=>b.text).join('\n\n');
+      const reviewContext=this.settings.maxContextChars?context.slice(-this.settings.maxContextChars):'';
       this.activeJobs=valid;
-      const answer=await this.reviewer.reviewBatch(valid.map(j=>({id:j.paragraph.id,text:j.paragraph.text})),context,this.settings);
+      const answer=await this.reviewer.reviewBatch(valid.map(j=>({id:j.paragraph.id,text:j.paragraph.text})),reviewContext,this.settings);
       if (this.stopped || this.paused || generation!==this.generation) return;
       this.failureCount=0; this.backoffUntil=0; this.lastError=null;
       this.metrics.requests++; this.metrics.inputTokens+=Number(answer.usage?.input_tokens)||0;
@@ -284,6 +336,8 @@ class ReviewEngine extends EventEmitter {
     this.emit('changed');this.emit('persist');
   }
   renameFile(oldPath,newPath) {
+    for(const file of [...new Set([...this.notes.keys(),...[...this.feedback.values()].map(r=>r.file)])])
+      if(file.startsWith(oldPath+'/'))this.renameFile(file,newPath+file.slice(oldPath.length));
     for(const job of this.activeJobs||[])if(job.file===oldPath){job.file=newPath;job.key=this.key(newPath,job.paragraph.id);}
     const note=this.notes.get(oldPath); if(note){this.notes.delete(oldPath);this.notes.set(newPath,note);}
     for(const [key,job] of [...this.pending])if(job.file===oldPath){this.pending.delete(key);job.file=newPath;job.key=this.key(newPath,job.paragraph.id);this.pending.set(job.key,job);}
@@ -292,6 +346,8 @@ class ReviewEngine extends EventEmitter {
     this.emit('changed');this.emit('persist');
   }
   forgetFile(file) {
+    for(const child of [...new Set([...this.notes.keys(),...[...this.feedback.values()].map(r=>r.file)])])
+      if(child.startsWith(file+'/'))this.forgetFile(child);
     this.notes.delete(file);
     for(const [key,job]of this.pending)if(job.file===file)this.pending.delete(key);
     for(const [key,result]of this.feedback)if(result.file===file)this.feedback.delete(key);
@@ -315,14 +371,17 @@ class ReviewEngine extends EventEmitter {
   }
   stop(){this.stopped=true;this.generation++;clearTimeout(this.timer);this.pending.clear();this.reviewer.stop?.();}
 }
-module.exports={DEFAULTS,hash,settingsWithDefaults,blocks,paragraphs,isAllowed,feedbackRanges,CodexReviewer,ReviewEngine};
+module.exports={DEFAULTS,hash,settingsWithDefaults,blocks,paragraphs,isAllowed,feedbackRanges,CodexReviewer,ReviewEngine,discoverCodex,runLocalCommand};
 
 return module.exports;})();
     const saved = await this.loadData() || {};
     this.settings = this.core.settingsWithDefaults(saved.settings || saved);
+    if(saved.version===1&&saved.settings?.enabled)this.settings.consentGranted=true;
+    this.connection={ready:false,message:'Checking Codex connection…'};
     this.loop = new this.core.ReviewEngine(new this.core.CodexReviewer({
       binary:this.settings.codexPath,cwd:this.pluginRoot,timeoutMs:this.settings.timeoutMs
     }), this.settings, saved.state || {});
+    this.loop.paused=true;
     this.saveChain=Promise.resolve(); this.refreshTimers=new Map(); this.captureTimers=new Map();
     this.status=this.addStatusBarItem();
     this.status.setAttribute('role','button'); this.status.setAttribute('tabindex','0');
@@ -364,6 +423,25 @@ return module.exports;})();
     }});
     this.addSettingTab(new ReviewSettings(this.app,this));
     this.updateStatus();
+    await this.verifyConnection();
+  }
+  async verifyConnection(){
+    const generation=(this.connectionGeneration||0)+1;this.connectionGeneration=generation;
+    this.connection={ready:false,message:'Checking Codex connection…'};this.updateStatus();
+    const result=await this.core.discoverCodex(this.settings.codexPath);
+    if(this.unloaded||generation!==this.connectionGeneration)return result;
+    this.connection=result;
+    if(result.ready){
+      this.loop.reviewer.binary=result.binary;
+      if(this.settings.enabled&&this.settings.consentGranted)this.loop.setPaused(false);
+    }else this.loop.setPaused(true);
+    this.persist();this.updateStatus();return result;
+  }
+  async connectAndEnable(){
+    const result=await this.verifyConnection();
+    if(!result.ready){new Notice(result.message);return false;}
+    this.settings.consentGranted=true;this.settings.enabled=true;
+    this.loop.setPaused(false);this.baselineOpenViews();this.persist();this.updateStatus();return true;
   }
   installEditor(){
     const plugin=this;
@@ -482,19 +560,22 @@ return module.exports;})();
   updateStatus(){
     if(this.unloaded)return;
     const count=this.loop.pending.size;
-    let message=this.loop.paused?'AI feedback: paused':this.loop.busy?'AI feedback: reviewing…':
+    let message=!this.connection?.ready?'AI feedback: setup needed':!this.settings.consentGranted?'AI feedback: enable in settings':this.loop.paused?'AI feedback: paused':this.loop.busy?'AI feedback: reviewing…':
       this.loop.lastError?'AI feedback: connection needs attention':count?`AI feedback: ${count} queued`:'AI feedback: ready';
-    if(!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
+    if(this.connection?.ready&&!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
       message=`AI feedback: ${(this.loop.metrics.lastTotalMs/1000).toFixed(1)}s last review`;
     this.status.setText(message);
     this.status.setAttribute('aria-label',message+'. Click to pause or resume.');
   }
   togglePaused(){
+    if(!this.settings.consentGranted){new Notice('Open Automatic Paragraph Review settings and choose Connect and enable to start automatic reviews.');return;}
+    if(!this.connection?.ready){new Notice(this.connection?.message||'Check the Codex connection in plugin settings.');return;}
     this.settings.enabled=!this.settings.enabled;this.loop.setPaused(!this.settings.enabled);
     this.baselineOpenViews();this.persist();this.updateStatus();
   }
   applySettings(){
     this.settings=this.core.settingsWithDefaults(this.settings);this.loop.updateSettings(this.settings);
+    if(this.connection?.ready)this.loop.reviewer.binary=this.connection.binary;
     this.refreshEditors();this.persist();
   }
   persist(){
@@ -503,7 +584,7 @@ return module.exports;})();
   }
   saveNow(){
     clearTimeout(this.saveTimer);
-    const data=JSON.parse(JSON.stringify({version:1,settings:this.settings,state:this.loop.exportState()}));
+    const data=JSON.parse(JSON.stringify({version:2,settings:this.settings,state:this.loop.exportState()}));
     this.saveChain=this.saveChain.catch(()=>{}).then(()=>this.saveData(data)).catch(error=>{
       console.error('[Automatic paragraph review] Could not save plugin data.',error);
       if(!this.saveNotice){this.saveNotice=true;new Notice('AI feedback could not be saved. Check vault write permissions.');}
@@ -523,9 +604,12 @@ class ReviewSettings extends PluginSettingTab {
     const plugin=this.plugin; // Obsidian's base class stores plugin.
     this.containerEl.empty();
     this.containerEl.createEl('h2',{text:'Automatic AI feedback'});
+    new Setting(this.containerEl).setName('Codex connection').setDesc(plugin.connection?.message||'Check the connection before enabling reviews.').addButton(button=>button.setButtonText('Check connection').onClick(async()=>{button.setDisabled(true);await plugin.verifyConnection();this.display();}));
+    if(!plugin.settings.consentGranted)new Setting(this.containerEl).setName('Enable automatic feedback').setDesc('Completed passages and nearby prose from the same note will be sent to Codex using your existing sign-in. Account usage limits apply. Your note text will not be changed.').addButton(button=>button.setButtonText('Connect and enable').setCta().onClick(async()=>{button.setDisabled(true);await plugin.connectAndEnable();this.display();}));
     this.containerEl.createEl('p',{text:'Write normally. Feedback appears as a subtle underline. Hover, click, or move your text cursor into the underlined passage to read it. Your Markdown stays unchanged.'});
     const update=()=>plugin.applySettings();
     new Setting(this.containerEl).setName('Automatic reviews').setDesc('Pause or resume background reviews.').addToggle(toggle=>toggle.setValue(plugin.settings.enabled).onChange(value=>{
+      if(value&&(!plugin.settings.consentGranted||!plugin.connection?.ready)){new Notice('Use Connect and enable, or check the Codex connection first.');this.display();return;}
       plugin.settings.enabled=value;plugin.loop.setPaused(!value);plugin.persist();plugin.updateStatus();
     }));
     new Setting(this.containerEl).setName('Feedback focus').addDropdown(drop=>drop
@@ -547,8 +631,8 @@ class ReviewSettings extends PluginSettingTab {
       .setValue(plugin.settings.onlyFile).setPlaceholder('Class notes/Lecture.md').onChange(value=>{plugin.settings.onlyFile=value.trim();update();}));
     new Setting(this.containerEl).setName('Excluded folders').setDesc('One vault-relative folder per line.').addTextArea(text=>text
       .setValue(plugin.settings.excludedFolders.join('\n')).onChange(value=>{plugin.settings.excludedFolders=value.split('\n').map(x=>x.trim()).filter(Boolean);update();}));
-    new Setting(this.containerEl).setName('Codex executable').setDesc('Uses the existing local Codex sign-in.').addText(text=>text
-      .setValue(plugin.settings.codexPath).onChange(value=>{plugin.settings.codexPath=value.trim();update();}));
+    new Setting(this.containerEl).setName('Codex executable').setDesc('Leave empty for automatic detection, or enter a full executable path. Uses your existing local Codex sign-in.').addText(text=>text
+      .setValue(plugin.settings.codexPath).setPlaceholder('Automatic detection').onChange(value=>{plugin.settings.codexPath=value.trim();plugin.connection={ready:false,message:'Executable changed. Check the connection again.'};plugin.loop.setPaused(true);update();}));
     const metrics=plugin.loop.metrics;
     new Setting(this.containerEl).setName('Recorded usage').setDesc(`${metrics.requests} successful requests · ${metrics.paragraphs} passages reviewed · ${metrics.inputTokens.toLocaleString()} input tokens · ${metrics.outputTokens.toLocaleString()} output tokens. These are reported tokens, not a conversion to subscription allowance.`);
     this.containerEl.createEl('p',{cls:'setting-item-description',text:'Reviews send eligible passage text and up to 8,000 preceding characters from the same note to Codex. Feedback and dismissed state are saved locally in this vault’s plugin data. Factual concerns are suggestions to verify, not sourced fact checks.'});

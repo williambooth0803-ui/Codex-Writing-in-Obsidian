@@ -14,3 +14,4 @@ data.json
 # Local scratch work and generated archives
 work/
 *.zip
+dist/

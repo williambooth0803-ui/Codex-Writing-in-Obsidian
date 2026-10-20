@@ -6,7 +6,7 @@ const samples=[
   {subject:'Learning and memory',text:'Retrieval practice means trying to recall information without looking at the notes. Rereading feels easier because the material becomes familiar. If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later, even without testing myself.'}
 ];
 async function main(){
-  const loop=new ReviewEngine(new CodexReviewer(),{minIntervalMs:0});const results=[];
+  const loop=new ReviewEngine(new CodexReviewer(),{minIntervalMs:0,enabled:true});const results=[];
   loop.on('started',job=>console.log(JSON.stringify({event:'automatic-batch-started',passages:job.count})));
   const completed=new Promise((resolve,reject)=>{
     loop.on('review-error',({error})=>reject(error));
@@ -23,7 +23,7 @@ async function main(){
   try{
     await completed;
     fs.writeFileSync(process.argv[2]||path.join(__dirname,'benchmark-results.json'),JSON.stringify({
-      version:'1.0.0',testedAt:new Date().toISOString(),trigger:'Automatic 8-second delay after paragraph completion',
+      version:require('./manifest.json').version,testedAt:new Date().toISOString(),trigger:'Automatic 8-second delay after paragraph completion',
       mode:'Three passages in one real Codex request',metrics:loop.metrics,samples:results
     },null,2));
   }finally{loop.stop();}

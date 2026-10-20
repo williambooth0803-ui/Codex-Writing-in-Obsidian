@@ -6,7 +6,7 @@ const other='Rereading feels familiar, so it guarantees I can recall the materia
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function answer(targets){return {reviews:targets.map(t=>({id:t.id,comments:[{id:hash(t.id),category:'reasoning',quote:t.text.slice(0,30),comment:'What evidence supports the causal inference?'}]})),aiMs:1,usage:{input_tokens:100,output_tokens:10}};}
 function setup(reviewBatch=async targets=>answer(targets),settings={},saved={}){
-  const reviewer={reviewBatch,stop(){}};const engine=new ReviewEngine(reviewer,settings,saved);
+  const reviewer={reviewBatch,stop(){}};const engine=new ReviewEngine(reviewer,{enabled:true,...settings},saved);
   Object.assign(engine.settings,{pauseMs:8,idleMs:20,minIntervalMs:0});return engine;
 }
 

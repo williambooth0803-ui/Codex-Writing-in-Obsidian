@@ -6,7 +6,7 @@ Automatic study feedback inside desktop Obsidian, using your existing local Code
 
 The default focus is **understanding, reasoning, and possible factual gaps**. Feedback may identify an unsupported inference, ask a useful study question, or flag something to verify. It preserves shorthand and your voice. Factual concerns are not represented as sourced fact checks.
 
-> **Status: beta.** The core workflow has been tested, but this build has not been submitted to Obsidian’s Community Plugins directory. See [release preparation](PUBLISHING.md) for the remaining work.
+**Release: 1.0.1.** Download the [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) for manual installation. Obsidian Community directory submission and approval are separate; this is not yet a directory listing.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
@@ -47,22 +47,26 @@ Install the plugin using the instructions below. Write a paragraph or list item,
 
 Hover over an underline, click it, or move the text cursor into it to read feedback. Escape closes a keyboard-opened popover. The command **Automatic Paragraph Review: Show AI feedback at cursor** is also available. Dismiss removes an individual comment and saves that choice until the passage changes. **Dismiss feedback in current note** removes that note's visible comments.
 
-## Manual installation for beta testing
+## Installation and one-time setup
 
-1. Ensure the local Codex CLI works and is signed in: `codex login status`.
-2. Create `<vault>/.obsidian/plugins/automatic-paragraph-review/`.
-3. Copy **main.js**, **manifest.json**, **styles.css**, and **review-schema.json** into that folder. No package installation or API key is needed to run the plugin.
-4. Enable **Automatic Paragraph Review** in Obsidian Community plugins.
-5. In its settings, confirm the Codex executable path. The default on this Mac is `/opt/homebrew/bin/codex`.
-6. To restrict reviews, set a vault-relative note path or add excluded folders. The default allows eligible notes you edit. For an initial test, restrict it to a disposable sample note.
+1. Install the [official Codex CLI](https://developers.openai.com/codex/cli/) and sign in with `codex login`. The plugin does not install Codex for you.
+2. Download the manual-install ZIP from the [latest GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) and extract its `automatic-paragraph-review` folder into `<vault>/.obsidian/plugins/`. Alternatively, create that folder and copy the release assets **main.js**, **manifest.json**, and **styles.css** into it. These are the only three runtime files.
+3. Enable **Automatic Paragraph Review** in Obsidian's Community plugins settings.
+4. Open the plugin's settings. Automatic reviews start disabled. Codex detection checks executable support and sign-in. If needed, enter the full executable path and select **Check connection**.
+5. Set any note restriction or excluded folders, then select **Connect and enable**. This is a one-time opt-in to sending eligible text to Codex, not a prompt for each review.
+6. Write normally. Click the status bar to pause or resume.
 
-Feedback is available in editing / Live Preview mode, not Reading view. This release is desktop-only. It has been live-tested on this Mac with Obsidian 1.13.7 and Codex CLI 0.163.0. Other desktop platforms and the oldest declared compatible Obsidian versions have not been live-tested.
+Feedback is available in editing / Live Preview mode. Requires **desktop Obsidian 1.13.7 or later**. Live-tested on macOS with Obsidian 1.13.7 and Codex CLI 0.163.0. Linux automated tests cover the engine and editor integration; other desktop operating systems have not been live-tested. Windows users may need a native `codex.exe` path. Mobile and Reading view are not supported.
+
+If setup reports signed out, run `codex login` in your terminal and check again. If it reports missing options, update the CLI from its official installation instructions. The plugin requires support for `exec --output-schema`, `--ignore-user-config`, and `--ephemeral`. A subscription or other account access that supports Codex is required; service limits apply. The plugin does not require you to configure a separate API key.
 
 ## Data and operation
 
 Each review sends selected passage text and nearby preceding prose from the same note to Codex. Frontmatter, fenced code, hidden comments, and quoted/table blocks are excluded from the extracted review context. Eligible changes are reviewed once; opening existing text is a baseline rather than an automatic whole-note upload.
 
 Local feedback, source passage text, dismissals, settings, and aggregate usage metrics are stored in the vault's `.obsidian/plugins/automatic-paragraph-review/data.json`. They may travel with any service you use to sync plugin data. The plugin does not store an API key or copy your Codex credentials. Codex's existing authentication, account limits, and data handling apply.
+
+The plugin launches the installed Codex executable outside the vault and writes a schema-only temporary file in the operating system temporary directory, removing it after each completed or failed review. Note text is passed through the process input, not a temporary note file. The CLI uses its own authentication and runtime storage outside the vault (normally `~/.codex`); CLI-managed storage and network activity follow Codex settings and service behavior. The plugin adds no telemetry or direct network client.
 
 Requests use an ephemeral `codex exec` process, the CLI's default model and low reasoning, without user configuration. Shell execution, unified execution, connected apps, and web search are disabled for the review process; the sandbox is read-only. This version reviews the supplied text rather than researching sources or browsing your other notes. Timeout: 150 seconds. Connection failures retry up to twice with increasing cooldown. Pause cancels the current process and clears pending work.
 
@@ -79,13 +83,21 @@ Runtime files are already built. Source and tests are included for inspection:
 - `tests/editor-integration.test.js`: Tests using real CodeMirror in a test DOM.
 - `benchmark.js`: Makes one real Codex request containing three synthetic passages.
 
-For development, use Node.js 24 or later:
+For development, use Node.js 24.15 or later and pnpm 11.25.0:
 
 ```sh
-npm install
-npm run build
-npm test
-npm run benchmark
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run build
+pnpm test
+pnpm run release
+# Optional: makes one real AI request
+pnpm run benchmark
 ```
 
 The benchmark consumes Codex allowance and overwrites `benchmark-results.json`. Build and unit tests do not call AI. See [verification.md](verification.md) for observed validation and timing limits.
+
+## Releases and support
+
+Source is licensed under [MIT](LICENSE), copyright 2026 williambooth0803-ui. Report reproducible issues in [GitHub Issues](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/issues), with plugin, Obsidian, operating system, and Codex versions. Remove personal note content and credentials from reports.
+
+Pushing a new manifest/package version to `main` runs the checks and publishes a matching GitHub release only when they pass. Existing releases are left unchanged. See [PUBLISHING.md](PUBLISHING.md) for the directory submission procedure.

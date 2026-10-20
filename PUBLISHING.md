@@ -1,14 +1,19 @@
-# Release preparation
+# Publishing
 
-This repository contains the tested personal beta source. No Obsidian Community Plugins submission or GitHub release has been made.
+Release 1.0.1 is prepared for the public repository under the MIT license, with `williambooth0803-ui` as author. The GitHub Actions workflow verifies the committed bundle, runs all 18 automated checks, validates packaging, and publishes a matching version tag and release when a version is new.
 
-Before public release:
+## GitHub release
 
-- Remove the separate runtime schema-file requirement. The standard Obsidian installer downloads `main.js`, `manifest.json`, and `styles.css`, while the current Codex invocation also needs `review-schema.json`.
-- Add first-run Codex executable detection and sign-in validation. The current executable default is specific to a Homebrew installation on macOS.
-- Choose the publishing author and a source license. The manifest still uses the placeholder `Personal prototype`, and a `LICENSE` file has not yet been added.
-- Set the minimum Obsidian version to one supported by evidence. Currently only Obsidian 1.13.7 has been live-tested; the manifest declares 1.5.0.
-- Test a fresh installation through the intended installation path and a full class-length writing session.
-- Create a matching GitHub release and submit it for review after those items are complete.
+The release has the standard Obsidian installer assets `main.js`, `manifest.json`, and `styles.css`, plus a manual-install ZIP and SHA-256 checksums. Source is available in the repository and automatic source archives. No API keys, local plugin data, vault notes, or Codex authentication files are packaged.
 
-See [Obsidian’s submission instructions](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin) and the local [verification report](verification.md).
+For a future release, update `manifest.json`, `package.json`, `versions.json`, `CHANGELOG.md`, and `RELEASE_NOTES.md`; build `main.js`; refresh `runtime-checksums.json`; run the tests and packager; then push to `main`. A published version's assets are immutable in this workflow: use a new version for changes.
+
+## Obsidian Community directory
+
+A GitHub release does not automatically create a Community directory listing. The owner must sign in at [community.obsidian.md](https://community.obsidian.md), connect the GitHub account, and submit this repository:
+
+`https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian`
+
+Choose the personal account owner. The name, description, desktop restriction, version, and author come from `manifest.json`. Review the developer policies and maintenance commitments personally before submitting. Obsidian review and approval determine when the plugin becomes installable from its built-in directory.
+
+Follow [Obsidian's submission instructions](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). The verified behaviors and remaining platform/classroom testing limits are recorded in [verification.md](verification.md).

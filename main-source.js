@@ -10,9 +10,12 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.core = /* REVIEW_CORE */;
     const saved = await this.loadData() || {};
     this.settings = this.core.settingsWithDefaults(saved.settings || saved);
+    if(saved.version===1&&saved.settings?.enabled)this.settings.consentGranted=true;
+    this.connection={ready:false,message:'Checking Codex connection…'};
     this.loop = new this.core.ReviewEngine(new this.core.CodexReviewer({
       binary:this.settings.codexPath,cwd:this.pluginRoot,timeoutMs:this.settings.timeoutMs
     }), this.settings, saved.state || {});
+    this.loop.paused=true;
     this.saveChain=Promise.resolve(); this.refreshTimers=new Map(); this.captureTimers=new Map();
     this.status=this.addStatusBarItem();
     this.status.setAttribute('role','button'); this.status.setAttribute('tabindex','0');
@@ -54,6 +57,25 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     }});
     this.addSettingTab(new ReviewSettings(this.app,this));
     this.updateStatus();
+    await this.verifyConnection();
+  }
+  async verifyConnection(){
+    const generation=(this.connectionGeneration||0)+1;this.connectionGeneration=generation;
+    this.connection={ready:false,message:'Checking Codex connection…'};this.updateStatus();
+    const result=await this.core.discoverCodex(this.settings.codexPath);
+    if(this.unloaded||generation!==this.connectionGeneration)return result;
+    this.connection=result;
+    if(result.ready){
+      this.loop.reviewer.binary=result.binary;
+      if(this.settings.enabled&&this.settings.consentGranted)this.loop.setPaused(false);
+    }else this.loop.setPaused(true);
+    this.persist();this.updateStatus();return result;
+  }
+  async connectAndEnable(){
+    const result=await this.verifyConnection();
+    if(!result.ready){new Notice(result.message);return false;}
+    this.settings.consentGranted=true;this.settings.enabled=true;
+    this.loop.setPaused(false);this.baselineOpenViews();this.persist();this.updateStatus();return true;
   }
   installEditor(){
     const plugin=this;
@@ -172,19 +194,22 @@ module.exports = class AutomaticParagraphReview extends Plugin {
   updateStatus(){
     if(this.unloaded)return;
     const count=this.loop.pending.size;
-    let message=this.loop.paused?'AI feedback: paused':this.loop.busy?'AI feedback: reviewing…':
+    let message=!this.connection?.ready?'AI feedback: setup needed':!this.settings.consentGranted?'AI feedback: enable in settings':this.loop.paused?'AI feedback: paused':this.loop.busy?'AI feedback: reviewing…':
       this.loop.lastError?'AI feedback: connection needs attention':count?`AI feedback: ${count} queued`:'AI feedback: ready';
-    if(!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
+    if(this.connection?.ready&&!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
       message=`AI feedback: ${(this.loop.metrics.lastTotalMs/1000).toFixed(1)}s last review`;
     this.status.setText(message);
     this.status.setAttribute('aria-label',message+'. Click to pause or resume.');
   }
   togglePaused(){
+    if(!this.settings.consentGranted){new Notice('Open Automatic Paragraph Review settings and choose Connect and enable to start automatic reviews.');return;}
+    if(!this.connection?.ready){new Notice(this.connection?.message||'Check the Codex connection in plugin settings.');return;}
     this.settings.enabled=!this.settings.enabled;this.loop.setPaused(!this.settings.enabled);
     this.baselineOpenViews();this.persist();this.updateStatus();
   }
   applySettings(){
     this.settings=this.core.settingsWithDefaults(this.settings);this.loop.updateSettings(this.settings);
+    if(this.connection?.ready)this.loop.reviewer.binary=this.connection.binary;
     this.refreshEditors();this.persist();
   }
   persist(){
@@ -193,7 +218,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
   }
   saveNow(){
     clearTimeout(this.saveTimer);
-    const data=JSON.parse(JSON.stringify({version:1,settings:this.settings,state:this.loop.exportState()}));
+    const data=JSON.parse(JSON.stringify({version:2,settings:this.settings,state:this.loop.exportState()}));
     this.saveChain=this.saveChain.catch(()=>{}).then(()=>this.saveData(data)).catch(error=>{
       console.error('[Automatic paragraph review] Could not save plugin data.',error);
       if(!this.saveNotice){this.saveNotice=true;new Notice('AI feedback could not be saved. Check vault write permissions.');}
@@ -213,9 +238,12 @@ class ReviewSettings extends PluginSettingTab {
     const plugin=this.plugin; // Obsidian's base class stores plugin.
     this.containerEl.empty();
     this.containerEl.createEl('h2',{text:'Automatic AI feedback'});
+    new Setting(this.containerEl).setName('Codex connection').setDesc(plugin.connection?.message||'Check the connection before enabling reviews.').addButton(button=>button.setButtonText('Check connection').onClick(async()=>{button.setDisabled(true);await plugin.verifyConnection();this.display();}));
+    if(!plugin.settings.consentGranted)new Setting(this.containerEl).setName('Enable automatic feedback').setDesc('Completed passages and nearby prose from the same note will be sent to Codex using your existing sign-in. Account usage limits apply. Your note text will not be changed.').addButton(button=>button.setButtonText('Connect and enable').setCta().onClick(async()=>{button.setDisabled(true);await plugin.connectAndEnable();this.display();}));
     this.containerEl.createEl('p',{text:'Write normally. Feedback appears as a subtle underline. Hover, click, or move your text cursor into the underlined passage to read it. Your Markdown stays unchanged.'});
     const update=()=>plugin.applySettings();
     new Setting(this.containerEl).setName('Automatic reviews').setDesc('Pause or resume background reviews.').addToggle(toggle=>toggle.setValue(plugin.settings.enabled).onChange(value=>{
+      if(value&&(!plugin.settings.consentGranted||!plugin.connection?.ready)){new Notice('Use Connect and enable, or check the Codex connection first.');this.display();return;}
       plugin.settings.enabled=value;plugin.loop.setPaused(!value);plugin.persist();plugin.updateStatus();
     }));
     new Setting(this.containerEl).setName('Feedback focus').addDropdown(drop=>drop
@@ -237,8 +265,8 @@ class ReviewSettings extends PluginSettingTab {
       .setValue(plugin.settings.onlyFile).setPlaceholder('Class notes/Lecture.md').onChange(value=>{plugin.settings.onlyFile=value.trim();update();}));
     new Setting(this.containerEl).setName('Excluded folders').setDesc('One vault-relative folder per line.').addTextArea(text=>text
       .setValue(plugin.settings.excludedFolders.join('\n')).onChange(value=>{plugin.settings.excludedFolders=value.split('\n').map(x=>x.trim()).filter(Boolean);update();}));
-    new Setting(this.containerEl).setName('Codex executable').setDesc('Uses the existing local Codex sign-in.').addText(text=>text
-      .setValue(plugin.settings.codexPath).onChange(value=>{plugin.settings.codexPath=value.trim();update();}));
+    new Setting(this.containerEl).setName('Codex executable').setDesc('Leave empty for automatic detection, or enter a full executable path. Uses your existing local Codex sign-in.').addText(text=>text
+      .setValue(plugin.settings.codexPath).setPlaceholder('Automatic detection').onChange(value=>{plugin.settings.codexPath=value.trim();plugin.connection={ready:false,message:'Executable changed. Check the connection again.'};plugin.loop.setPaused(true);update();}));
     const metrics=plugin.loop.metrics;
     new Setting(this.containerEl).setName('Recorded usage').setDesc(`${metrics.requests} successful requests · ${metrics.paragraphs} passages reviewed · ${metrics.inputTokens.toLocaleString()} input tokens · ${metrics.outputTokens.toLocaleString()} output tokens. These are reported tokens, not a conversion to subscription allowance.`);
     this.containerEl.createEl('p',{cls:'setting-item-description',text:'Reviews send eligible passage text and up to 8,000 preceding characters from the same note to Codex. Feedback and dismissed state are saved locally in this vault’s plugin data. Factual concerns are suggestions to verify, not sourced fact checks.'});

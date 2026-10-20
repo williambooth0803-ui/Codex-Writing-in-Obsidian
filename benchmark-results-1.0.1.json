@@ -1,0 +1,56 @@
+{
+  "version": "1.0.1",
+  "testedAt": "2026-10-20T21:42:22.298Z",
+  "trigger": "Automatic 8-second delay after paragraph completion",
+  "mode": "Three passages in one real Codex request",
+  "metrics": {
+    "requests": 1,
+    "paragraphs": 3,
+    "comments": 2,
+    "inputTokens": 11974,
+    "outputTokens": 205,
+    "lastAiMs": 8674.918333,
+    "lastTotalMs": 16700.024334,
+    "errors": 0
+  },
+  "samples": [
+    {
+      "subject": "Statistics",
+      "paragraph": "Students who attend more lectures tend to score higher on exams. This correlation proves that attendance alone causes better exam results, so the study does not need to account for prior knowledge, motivation, or time spent studying outside class.",
+      "comments": [
+        {
+          "category": "reasoning",
+          "quote": "This correlation proves that attendance alone causes better exam results",
+          "comment": "The association alone does not establish causation. Consider whether prior knowledge, motivation, or outside study could influence both attendance and exam scores. What study design would help distinguish these explanations from an effect of attendance?",
+          "id": "b19f4e7c1fd2cc85728f476c"
+        }
+      ],
+      "aiMs": 8674.918333,
+      "totalMs": 16686.427042000003,
+      "stale": false
+    },
+    {
+      "subject": "Music history",
+      "paragraph": "In sonata form, the exposition introduces the main thematic material and establishes a contrast between tonal areas. The development transforms that material and moves through different keys. The recapitulation brings the main themes back, generally resolving the earlier tonal contrast in the tonic.",
+      "comments": [],
+      "aiMs": 8674.918333,
+      "totalMs": 16699.990542,
+      "stale": false
+    },
+    {
+      "subject": "Learning and memory",
+      "paragraph": "Retrieval practice means trying to recall information without looking at the notes. Rereading feels easier because the material becomes familiar. If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later, even without testing myself.",
+      "comments": [
+        {
+          "category": "reasoning",
+          "quote": "If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later",
+          "comment": "This guarantee skips the distinction between recognizing material while reading and recalling it without cues. How could you test whether familiarity now predicts your ability to explain it from memory a week later?",
+          "id": "d29801a9a2d4913a513fe371"
+        }
+      ],
+      "aiMs": 8674.918333,
+      "totalMs": 16700.024334,
+      "stale": false
+    }
+  ]
+}

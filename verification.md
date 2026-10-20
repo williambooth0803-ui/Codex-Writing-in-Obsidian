@@ -1,8 +1,8 @@
-# Verification — version 1.0.0
+# Verification — release 1.0.1
 
 Validated October 20, 2026, on this Mac with Obsidian 1.13.7, Codex CLI 0.163.0, and Node.js 24.19.0 for development tests.
 
-## Live Obsidian checks
+## Live Obsidian checks (1.0.0 hover implementation)
 
 - Enabled the updated plugin only in **Obsidian Review Test**, restricted to **Automatic review demo.md**. The class-note vault was not modified.
 - Wrote a synthetic note about rereading and memory, completed the paragraph, and continued writing a new passage without issuing a review prompt or command.
@@ -28,9 +28,15 @@ Three synthetic class-note passages became eligible together. The shared product
 
 The batch benchmark disables the interval between successive requests for reproducibility. This first batch is unaffected by that setting because no previous request is running. The installed plugin retains its 30-second minimum between request starts.
 
+## Release 1.0.1 real Codex regression
+
+The final reviewer implementation repeated the same three-passage automatic benchmark with the embedded temporary schema. All three passages completed in one request after **16.7 seconds total**, including the normal 8-second eligibility delay. Statistics and learning/memory received one useful comment each; the clear music-history passage received none. Actual inputs, outputs, timings, and reported usage are in `benchmark-results-1.0.1.json`.
+
+The release build was also loaded in the existing test vault. Its new settings correctly reported that Codex was installed and signed in, preserved the understanding/reasoning focus and single-note restriction, and migrated the previously authorized test installation. The native accessibility connection timed out after closing settings, so a new 1.0.1 hover screenshot was not captured; the screenshot above documents the unchanged 1.0.0 hover implementation.
+
 ## Automated checks
 
-**15 checks passed**, comprising 13 review-engine checks and 2 integration checks using real CodeMirror with a test DOM:
+**18 checks passed** for the 1.0.1 release: 13 review-engine checks, 2 integration checks using real CodeMirror with a test DOM, and 3 setup/installation/workload checks:
 
 - Markdown segmentation, list items, CRLF, Unicode offsets, duplicate avoidance, and exclusion of frontmatter, fenced code, and hidden comments.
 - Automatic completed-passage review while typing continues, and idle review without a blank line.
@@ -42,8 +48,12 @@ The batch benchmark disables the interval between successive requests for reprod
 - Exact quote anchors and re-anchoring when other text moves.
 - Underline-only rendering, keyboard popover access, Escape, correct dismissal target, and removal of outdated annotations after edits.
 
+- Connection discovery covers missing executables, signed-out accounts, unsupported CLI options, and a supported sign-in.
+- A fresh install containing only the three release files runs the bundled reviewer against a synthetic CLI, validates the embedded schema, and confirms the temporary schema is removed.
+- An accelerated 60-minute logical workload adds 120 passages, completes 60 synthetic requests, and verifies queue/history bounds, deduplication, folder moves, deletion, and restoration. This is a simulated workload, not 60 minutes of wall-clock classroom use.
+
 ## Packaging and limits
 
-The runtime bundle contains the review core, so plugin reloads cannot retain an old separately cached engine. Installation requires only `main.js`, `manifest.json`, `styles.css`, and `review-schema.json`; source and development tests are included in the release archive.
+The runtime bundle contains the review core, so plugin reloads cannot retain an old separately cached engine. Installation requires only `main.js`, `manifest.json`, and `styles.css`. The manual ZIP contains exactly these files in the plugin folder. The JSON schema is embedded in `main.js`; it is written temporarily for the CLI and removed afterward. Source and development tests remain in the GitHub repository, outside the runtime ZIP. The packager checks manifest versions, license, archive contents, and SHA-256 checksums.
 
 These are measured feasibility and functionality checks, not an hour-long classroom endurance test. This version does not perform sourced fact-checking, rewrite notes, support mobile, or provide feedback in Reading view. Other operating systems and older Obsidian releases have not been live-tested.
