@@ -1,0 +1,16 @@
+# Dependencies and local test output
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# Credentials, Obsidian runtime state, and personal notes
+.env
+.env.*
+.obsidian/
+.codex/
+data.json
+
+# Local scratch work and generated archives
+work/
+*.zip

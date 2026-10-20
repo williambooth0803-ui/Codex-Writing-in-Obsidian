@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "testedAt": "2026-10-20T20:38:15.970Z",
+  "trigger": "Automatic 8-second delay after paragraph completion",
+  "mode": "Three passages in one real Codex request",
+  "metrics": {
+    "requests": 1,
+    "paragraphs": 3,
+    "comments": 2,
+    "inputTokens": 12031,
+    "outputTokens": 203,
+    "lastAiMs": 7365.336667,
+    "lastTotalMs": 15443.058125,
+    "errors": 0
+  },
+  "samples": [
+    {
+      "subject": "Statistics",
+      "paragraph": "Students who attend more lectures tend to score higher on exams. This correlation proves that attendance alone causes better exam results, so the study does not need to account for prior knowledge, motivation, or time spent studying outside class.",
+      "comments": [
+        {
+          "category": "reasoning",
+          "quote": "This correlation proves that attendance alone causes better exam results",
+          "comment": "The association alone doesn't establish causation. How might prior knowledge or motivation influence both attendance and exam scores, and what study design could help distinguish those explanations from an attendance effect?",
+          "id": "58ed9b7198b477ccaa0074dc"
+        }
+      ],
+      "aiMs": 7365.336667,
+      "totalMs": 15426.415916999998,
+      "stale": false
+    },
+    {
+      "subject": "Music history",
+      "paragraph": "In sonata form, the exposition introduces the main thematic material and establishes a contrast between tonal areas. The development transforms that material and moves through different keys. The recapitulation brings the main themes back, generally resolving the earlier tonal contrast in the tonic.",
+      "comments": [],
+      "aiMs": 7365.336667,
+      "totalMs": 15443.008458,
+      "stale": false
+    },
+    {
+      "subject": "Learning and memory",
+      "paragraph": "Retrieval practice means trying to recall information without looking at the notes. Rereading feels easier because the material becomes familiar. If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later, even without testing myself.",
+      "comments": [
+        {
+          "category": "reasoning",
+          "quote": "If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later",
+          "comment": "This inference treats familiarity while reading as evidence of later recall without cues. How could you test whether you can explain the material with the notes closed, then check whether that ability persists a week later?",
+          "id": "2000602ccb044de066553a9c"
+        }
+      ],
+      "aiMs": 7365.336667,
+      "totalMs": 15443.058125,
+      "stale": false
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "app": "Obsidian 1.13.7",
+  "cli": "0.163.0",
+  "vault": "Obsidian Review Test",
+  "note": "Automatic review demo.md",
+  "observations": {
+    "automaticReviewWithoutPrompt": true,
+    "hoverPopoverVisible": true,
+    "popoverCloseVerified": true,
+    "annotationsRestoreAfterPluginReload": true,
+    "reloadTriggeredNewAIRequest": false,
+    "mainClassVaultModified": false
+  },
+  "metrics": {
+    "requests": 2,
+    "paragraphs": 2,
+    "comments": 1,
+    "inputTokens": 23163,
+    "outputTokens": 130,
+    "lastAiMs": 4303.799999952316,
+    "lastTotalMs": 42319.799999952316,
+    "errors": 0
+  },
+  "results": [
+    {
+      "key": "Automatic review demo.md\u0000c1ba6808db5e598ccee3ad14",
+      "file": "Automatic review demo.md",
+      "paragraph": {
+        "from": 464,
+        "to": 658,
+        "text": "Rereading a page makes its contents feel familiar. That familiarity guarantees I can explain every concept from memory a week later, so there is no need to practice recalling it without looking.",
+        "complete": true,
+        "id": "c1ba6808db5e598ccee3ad14"
+      },
+      "comments": [
+        {
+          "category": "reasoning",
+          "quote": "That familiarity guarantees I can explain every concept from memory a week later",
+          "comment": "Feeling familiar while looking at a page doesn't establish that you can explain it later without cues. What evidence would support that guarantee, and how could recalling the concepts with the page closed test it?",
+          "id": "550b55d3bda4e1e8b52fb454"
+        }
+      ],
+      "aiMs": 6593.299999952316,
+      "totalMs": 14596.899999976158,
+      "stale": false,
+      "at": "2026-10-20T20:32:52.377Z"
+    },
+    {
+      "key": "Automatic review demo.md\u0000685c84311fefc87741456978",
+      "file": "Automatic review demo.md",
+      "paragraph": {
+        "from": 660,
+        "to": 737,
+        "text": "I can continue writing the next topic while the previous passage is reviewed.",
+        "complete": false,
+        "id": "685c84311fefc87741456978"
+      },
+      "comments": [],
+      "aiMs": 4303.799999952316,
+      "totalMs": 42319.799999952316,
+      "stale": false,
+      "at": "2026-10-20T20:33:20.100Z"
+    }
+  ]
+}
