@@ -1,3 +1,12 @@
+# 1.0.3
+
+- Added a Run AI assistant button to each note header and a matching command for whole-note reviews on demand.
+- Added progress, cancellation, explicit rereview, and partial feedback as batches complete.
+- Included headings, short bullets, blockquotes, and tables in explicit reviews; split long text and shared feedback across identical passages.
+- Kept automatic pause/resume and folder restrictions unchanged; explicit runs can review the current excluded note.
+- Serialized manual and automatic requests and discarded feedback for text changed during a run.
+- Added eight automated checks for extraction, UI actions, queue coordination, cancellation, failure, and edits.
+
 # 1.0.2
 
 - Changed default feedback to context, explanations, conceptual/historical connections, and concrete examples that deepen understanding.

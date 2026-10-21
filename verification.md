@@ -69,3 +69,12 @@ The review also includes advisory filesystem/process capability warnings because
 All 19 automated checks passed, including the existing review queue/editor/installation checks, migration of the old Understanding mode, display of Context labels, hiding legacy question feedback without deleting history, and filtering question-style responses while retaining useful context.
 
 One real Codex request reviewed three already-correct synthetic passages about Boris Godunov, sonata form, and retrieval practice. Each received one Context comment with additional explanation and no questions. Total automatic paragraph-to-result time was 22.38 seconds, including the normal 8-second eligibility delay. Exact inputs, outputs, timings, and reported usage are in `benchmark-results-1.0.2.json`. This validates these examples; factual additions remain model-generated and are not externally researched or verified.
+
+
+## Release 1.0.3 whole-note checks
+
+All 27 automated checks pass. The eight added checks cover whole-note extraction, short bullets and headings, long Unicode-safe splitting, explicit rereview while automatic reviews are paused, identical-passage feedback, saved manual feedback, serialization with automatic work, cancellation, partial failure, edits, renames, and the note-header button using real CodeMirror and a test DOM.
+
+One real Codex request reviewed three synthetic passages through `ReviewEngine.reviewNote`: a sonata-form heading, a short exposition bullet, and an existing recapitulation paragraph. All three received explanatory comments in 9.90 seconds total. Automatic reviews remained paused. Exact inputs, outputs, timing, and reported usage are in `whole-note-benchmark-results-1.0.3.json`. Run `node whole-note-benchmark.js` to repeat this optional live test; it consumes Codex allowance.
+
+The three-file release was installed in the authorized iCloud vault and enabled. Obsidian displayed version 1.0.3 in Community plugins. The native UI connection timed out after closing its separate Settings window, as it had during an earlier release check; a live button screenshot is pending. The button action and progress transitions are covered by the editor integration test; the real Codex check above exercises the actual whole-note engine.

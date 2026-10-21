@@ -53,3 +53,23 @@ test('popover Dismiss targets the correct saved comment; typing removes an outda
     assert.equal(parent.querySelector('.automatic-ai-underline'),null);
   }finally{view.destroy();parent.remove();}
 });
+test('note-header Run AI assistant button reviews an existing note while automatic reviews stay paused',async()=>{
+  const plugin=new Plugin();plugin.core=core;plugin.settings=core.settingsWithDefaults();plugin.noteActions=new Map();plugin.connection={ready:true};
+  const parent=document.createElement('div');document.body.appendChild(parent);
+  const text='# Sonata\n\n- Tonic\n\nThe recapitulation returns contrasting material to the home key.';
+  const view={file:{path:'Existing.md'},editor:{getValue:()=>text,getCursor:()=>({line:0,ch:0}),posToOffset:()=>0},
+    addAction(icon,title,callback){const button=document.createElement('div');button.className='view-action';button.addEventListener('click',callback);parent.appendChild(button);return button;}};
+  plugin.app={workspace:{getLeavesOfType:()=>[{view}]}};
+  plugin.registerDomEvent=(element,event,callback)=>element.addEventListener(event,callback);
+  plugin.loop=new core.ReviewEngine({async reviewBatch(targets){return{reviews:targets.map(t=>({id:t.id,comments:[]})),aiMs:1};}},plugin.settings);
+  plugin.loop.on('changed',()=>plugin.updateRunButtons());
+  const run=plugin.runCurrentNote.bind(plugin);let work;plugin.runCurrentNote=view=>work=run(view);
+  try{
+    plugin.installNoteActions();plugin.installNoteActions();assert.equal(parent.querySelectorAll('[role="button"]').length,1);
+    const button=parent.querySelector('[role="button"]');assert.equal(button.textContent,'Run AI assistant');button.click();
+    assert.match(button.textContent,/Stop AI assistant/);await work;
+    assert.equal(plugin.loop.manualRun.status,'completed');assert.equal(plugin.loop.manualRun.total,3);
+    assert.equal(button.textContent,'Run AI assistant');assert.equal(plugin.loop.paused,true);assert.equal(plugin.settings.enabled,false);
+    assert.equal(plugin.loop.feedback.size,3);
+  }finally{plugin.loop.stop();parent.remove();}
+});

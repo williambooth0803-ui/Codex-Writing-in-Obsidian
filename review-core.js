@@ -29,7 +29,7 @@ function settingsWithDefaults(input = {}) {
 }
 
 // Offsets always refer to the original Markdown, including CRLF and Unicode.
-function blocks(text, { minChars = 40, maxChars = 5000 } = {}) {
+function blocks(text, { minChars = 40, maxChars = 5000, includeHeadings = false, includeStructured = false, keepDuplicates = false } = {}) {
   const found = [], lines = [...text.matchAll(/[^\n]*(?:\n|$)/g)].filter(m => m[0]);
   let current = null, fence = null, frontmatter = /^(?:\uFEFF)?---\r?\n/.test(text), inComment = false;
   function flush(complete) {
@@ -60,7 +60,13 @@ function blocks(text, { minChars = 40, maxChars = 5000 } = {}) {
       continue;
     }
     if (!line.trim()) { flush(true); continue; }
-    if (/^\s{0,3}(#{1,6}\s|>|\|)|^\s*(?:---+|\*\*\*+|___+)\s*$/.test(line)) { flush(true); continue; }
+    const heading = /^\s{0,3}#{1,6}\s+/.exec(line);
+    if (heading) {
+      flush(true);
+      if (includeHeadings) { current = { from: offset + heading[0].length, to: offset + line.length }; flush(true); }
+      continue;
+    }
+    if ((!includeStructured && /^\s{0,3}(>|\|)/.test(line)) || /^\s*(?:---+|\*\*\*+|___+)\s*$/.test(line)) { flush(true); continue; }
     const list = /^(\s*)(?:[-+*]|\d+[.)])\s+(?:\[[ xX]\]\s*)?/.exec(line);
     if (list) {
       flush(true);
@@ -72,7 +78,28 @@ function blocks(text, { minChars = 40, maxChars = 5000 } = {}) {
   const counts = new Map();
   for (const b of found) counts.set(b.id, (counts.get(b.id) || 0) + 1);
   // Ambiguous identical passages aren't annotated, avoiding feedback on the wrong occurrence.
-  return found.filter(b => counts.get(b.id) === 1);
+  return keepDuplicates ? found : found.filter(b => counts.get(b.id) === 1);
+}
+function wholeNoteBlocks(text, settings = DEFAULTS) {
+  const max = settings.maxChars || DEFAULTS.maxChars, result = [];
+  for (const block of blocks(text, { minChars: 1, maxChars: Infinity, includeHeadings: true, includeStructured: true, keepDuplicates: true })) {
+    let offset = 0;
+    while (offset < block.text.length) {
+      let end = Math.min(offset + max, block.text.length);
+      if (end < block.text.length) {
+        const space = block.text.lastIndexOf(' ', end);
+        if (space > offset + max / 2) end = space;
+        if (/[\uD800-\uDBFF]/.test(block.text[end - 1])) end--;
+      }
+      const raw = block.text.slice(offset, end), value = raw.trim();
+      if (value) {
+        const from = block.from + offset + raw.indexOf(value);
+        result.push({ from, to: from + value.length, text: value, complete: true, id: hash(value) });
+      }
+      offset = end;
+    }
+  }
+  return result;
 }
 function paragraphs(text) { return blocks(text, { minChars: 60 }).filter(b => b.complete); }
 function isAllowed(file, settings) {
@@ -87,11 +114,10 @@ function isQuestionFeedback(comment) {
   return comment.category === 'question' || /[?？]/.test(comment.comment || '');
 }
 function feedbackRanges(text, results, settings = DEFAULTS) {
-  const parsed = blocks(text, settings), ranges = [];
+  const parsed = blocks(text, settings), whole = results.some(r => r.manual) ? wholeNoteBlocks(text, settings) : [], ranges = [];
   for (const result of results) {
-    const b = parsed.find(candidate => candidate.id === result.paragraph.id);
-    if (!b) continue;
-    for (const comment of result.comments) {
+    const matches = (result.manual ? whole : parsed).filter(candidate => candidate.id === result.paragraph.id);
+    for (const b of matches) for (const comment of result.comments) {
       if (isQuestionFeedback(comment)) continue;
       const at = b.text.indexOf(comment.quote);
       if (at < 0) continue;
@@ -243,18 +269,20 @@ class ReviewEngine extends EventEmitter {
       lastAiMs:0, lastTotalMs:0, errors:0 }, saved.metrics);
     this.busy = false; this.stopped = false; this.paused = !this.settings.enabled;
     this.lastStarted = -Infinity; this.backoffUntil = 0; this.failureCount = 0; this.generation = 0;
+    this.manualRun = null;
   }
   key(file,id) { return `${file}\u0000${id}`; }
-  update(file,text,cursor=-1,{ baseline=false }={}) {
-    if (this.stopped || !isAllowed(file,this.settings)) return;
+  update(file,text,cursor=-1,{ baseline=false, explicit=false }={}) {
+    const allowed = isAllowed(file,this.settings);
+    if (this.stopped || (!allowed && !explicit && this.manualRun?.file !== file && ![...this.feedback.values()].some(r=>r.file===file&&r.manual))) return;
     const now = performance.now(), parsed = blocks(text,this.settings), prior = this.notes.get(file);
     this.notes.set(file,{ text,cursor,blocks:parsed });
-    const exists = new Set(parsed.map(b => b.id));
-    for (const [key,result] of this.feedback) if (result.file === file && !exists.has(result.paragraph.id)) this.feedback.delete(key);
+    const exists = new Set(parsed.map(b => b.id)), manualExists = new Set(wholeNoteBlocks(text,this.settings).map(b=>b.id));
+    for (const [key,result] of this.feedback) if (result.file === file && !(result.manual?manualExists:exists).has(result.paragraph.id)) this.feedback.delete(key);
     for (const [key,job] of this.pending) if (job.file === file && !exists.has(job.paragraph.id)) this.pending.delete(key);
     for (const b of parsed) {
       const key=this.key(file,b.id), previous=prior?.blocks.find(p => p.id===b.id);
-      if (baseline || this.paused) { this.done.add(key); continue; }
+      if (baseline || this.paused || !allowed) { this.done.add(key); continue; }
       if (this.done.has(key)) continue;
       const active = cursor>=b.from && cursor<=b.to;
       const delay = active ? this.settings.idleMs : this.settings.pauseMs;
@@ -267,13 +295,13 @@ class ReviewEngine extends EventEmitter {
   }
   schedule() {
     clearTimeout(this.timer);
-    if (this.stopped || this.paused || this.busy || !this.pending.size) return;
+    if (this.stopped || this.paused || this.busy || this.manualRunning() || !this.pending.size) return;
     const first=Math.min(...[...this.pending.values()].map(j=>j.due));
     const due=Math.max(first,this.lastStarted+this.settings.minIntervalMs,this.backoffUntil);
     this.timer=setTimeout(()=>this.run(),Math.max(0,due-performance.now()));
   }
   async run() {
-    if (this.stopped || this.paused || this.busy) return;
+    if (this.stopped || this.paused || this.busy || this.manualRunning()) return;
     const now=performance.now();
     if (now<this.backoffUntil || now<this.lastStarted+this.settings.minIntervalMs) return this.schedule();
     const first=[...this.pending.values()].filter(j=>j.due<=now).sort((a,b)=>a.completedAt-b.completedAt)[0];
@@ -293,19 +321,7 @@ class ReviewEngine extends EventEmitter {
       const answer=await this.reviewer.reviewBatch(valid.map(j=>({id:j.paragraph.id,text:j.paragraph.text})),reviewContext,this.settings);
       if (this.stopped || this.paused || generation!==this.generation) return;
       this.failureCount=0; this.backoffUntil=0; this.lastError=null;
-      this.metrics.requests++; this.metrics.inputTokens+=Number(answer.usage?.input_tokens)||0;
-      this.metrics.outputTokens+=Number(answer.usage?.output_tokens)||0;
-      this.metrics.lastAiMs=answer.aiMs;
-      for (const job of valid) {
-        const latest=this.notes.get(job.file)?.blocks.find(b=>b.id===job.paragraph.id);
-        const result={key:job.key,file:job.file,paragraph:latest||job.paragraph,
-          comments:answer.reviews.find(r=>r.id===job.paragraph.id)?.comments||[],
-          aiMs:answer.aiMs,totalMs:performance.now()-job.completedAt,stale:!latest,at:new Date().toISOString()};
-        if (latest && isAllowed(job.file,this.settings)) { this.done.add(job.key); this.feedback.set(job.key,result); }
-        this.metrics.paragraphs++; this.metrics.comments+=result.comments.length;
-        this.metrics.lastTotalMs=result.totalMs; this.emit('completed',result);
-      }
-      this.trim(); this.emit('persist');
+      this.recordAnswer(valid,answer);
     } catch(error) {
       if (!this.stopped && !this.paused && generation===this.generation) {
         this.failureCount++; this.metrics.errors++; this.lastError=error.message;
@@ -317,6 +333,74 @@ class ReviewEngine extends EventEmitter {
         this.emit('review-error',{error,retry:this.pending.size>0}); this.emit('persist');
       }
     } finally { this.activeJobs=[]; this.busy=false; this.emit('changed'); this.schedule(); }
+  }
+  recordAnswer(jobs,answer) {
+    this.metrics.requests++; this.metrics.inputTokens+=Number(answer.usage?.input_tokens)||0;
+    this.metrics.outputTokens+=Number(answer.usage?.output_tokens)||0; this.metrics.lastAiMs=answer.aiMs;
+    let skipped=0, comments=0;
+    for (const job of jobs) {
+      const note=this.notes.get(job.file);
+      const latest=(job.manual?wholeNoteBlocks(note?.text||'',this.settings):note?.blocks||[]).find(b=>b.id===job.paragraph.id);
+      const result={key:job.key,file:job.file,paragraph:latest||job.paragraph,manual:!!job.manual,
+        comments:answer.reviews.find(r=>r.id===job.paragraph.id)?.comments||[],aiMs:answer.aiMs,
+        totalMs:performance.now()-job.completedAt,stale:!latest,at:new Date().toISOString()};
+      if (latest && (job.manual || isAllowed(job.file,this.settings))) {
+        this.done.add(job.key);this.feedback.set(job.key,result);this.pending.delete(job.key);comments+=result.comments.length;
+      } else skipped++;
+      this.metrics.paragraphs++;this.metrics.comments+=result.comments.length;
+      this.metrics.lastTotalMs=result.totalMs;this.emit('completed',result);
+    }
+    this.trim();this.emit('persist');return {skipped,comments};
+  }
+  manualRunning() { return ['waiting','running','cancelling'].includes(this.manualRun?.status); }
+  cancelNoteReview() {
+    const run=this.manualRun;if(!this.manualRunning()||run.cancelled)return false;
+    run.cancelled=true;run.status='cancelling';
+    if(run.ownsReviewer)this.reviewer.stop?.();
+    this.emit('changed');return true;
+  }
+  async reviewNote(file,text,cursor=-1) {
+    if(this.stopped)throw new Error('The review engine has stopped.');
+    if(this.manualRunning())throw new Error('A whole-note review is already running.');
+    if(!file.endsWith('.md'))throw new Error('Open a Markdown note first.');
+    const targets=[...new Map(wholeNoteBlocks(text,this.settings).map(b=>[b.id,b])).values()];
+    if(!targets.length)throw new Error('This note has no reviewable text.');
+    this.update(file,text,cursor,{baseline:true,explicit:true});
+    const run={file,total:targets.length,completed:0,skipped:0,comments:0,status:'waiting',cancelled:false,ownsReviewer:false};
+    this.manualRun=run;clearTimeout(this.timer);this.emit('changed');
+    try {
+      while(this.busy&&!run.cancelled&&!this.stopped)await new Promise(resolve=>{
+        const changed=()=>{if(!this.busy||run.cancelled||this.stopped){this.off('changed',changed);resolve();}};
+        this.on('changed',changed);
+      });
+      if(run.cancelled||this.stopped)return run;
+      this.busy=true;run.ownsReviewer=true;run.status='running';this.emit('changed');
+      for(let at=0;at<targets.length;at+=this.settings.batchSize) {
+        if(run.cancelled||this.stopped)break;
+        const group=targets.slice(at,at+this.settings.batchSize),note=this.notes.get(run.file);
+        const latest=new Set(wholeNoteBlocks(note?.text||'',this.settings).map(b=>b.id));
+        const valid=group.filter(b=>latest.has(b.id));run.skipped+=group.length-valid.length;run.completed+=group.length-valid.length;
+        if(valid.length) {
+          const completedAt=performance.now();
+          this.activeJobs=valid.map(paragraph=>({file:run.file,key:this.key(run.file,paragraph.id),paragraph,completedAt,manual:true}));
+          const preceding=wholeNoteBlocks((note?.text||'').slice(0,valid[0].from),this.settings).map(b=>b.text).join('\n\n');
+          const context=this.settings.maxContextChars?preceding.slice(-this.settings.maxContextChars):'';
+          this.lastStarted=performance.now();this.emit('started',{count:valid.length,file:run.file,manual:true});
+          const answer=await this.reviewer.reviewBatch(valid.map(b=>({id:b.id,text:b.text})),context,this.settings);
+          if(run.cancelled||this.stopped)break;
+          const recorded=this.recordAnswer(this.activeJobs,answer);run.skipped+=recorded.skipped;run.comments+=recorded.comments;
+        }
+        run.completed+=valid.length;this.emit('changed');
+      }
+      if(!run.cancelled&&!this.stopped){run.status='completed';this.failureCount=0;this.backoffUntil=0;this.lastError=null;}
+    }catch(error){
+      if(!run.cancelled&&!this.stopped){run.status='failed';run.error=error.message;this.metrics.errors++;this.lastError=error.message;this.emit('persist');}
+    }finally{
+      if(run.cancelled||this.stopped)run.status='cancelled';
+      if(run.ownsReviewer){run.ownsReviewer=false;this.activeJobs=[];this.busy=false;}
+      this.emit('manual-finished',run);this.emit('changed');this.schedule();
+    }
+    return run;
   }
   trim() {
     while(this.feedback.size>300) this.feedback.delete(this.feedback.keys().next().value);
@@ -333,6 +417,7 @@ class ReviewEngine extends EventEmitter {
     this.emit('changed');this.emit('persist');
   }
   renameFile(oldPath,newPath) {
+    if(this.manualRun?.file===oldPath)this.manualRun.file=newPath;
     for(const file of [...new Set([...this.notes.keys(),...[...this.feedback.values()].map(r=>r.file)])])
       if(file.startsWith(oldPath+'/'))this.renameFile(file,newPath+file.slice(oldPath.length));
     for(const job of this.activeJobs||[])if(job.file===oldPath){job.file=newPath;job.key=this.key(newPath,job.paragraph.id);}
@@ -343,6 +428,7 @@ class ReviewEngine extends EventEmitter {
     this.emit('changed');this.emit('persist');
   }
   forgetFile(file) {
+    if(this.manualRunning()&&this.manualRun.file===file)this.cancelNoteReview();
     for(const child of [...new Set([...this.notes.keys(),...[...this.feedback.values()].map(r=>r.file)])])
       if(child.startsWith(file+'/'))this.forgetFile(child);
     this.notes.delete(file);
@@ -353,7 +439,7 @@ class ReviewEngine extends EventEmitter {
   }
   setPaused(value) {
     this.paused=value; this.settings.enabled=!value; this.generation++; clearTimeout(this.timer);
-    if(value){this.pending.clear();this.reviewer.stop?.();}
+    if(value){this.pending.clear();if(!this.manualRun?.ownsReviewer)this.reviewer.stop?.();}
     else {
       this.failureCount=0;this.backoffUntil=0;this.lastError=null;
       for(const[file,note]of this.notes)this.update(file,note.text,note.cursor);
@@ -366,6 +452,6 @@ class ReviewEngine extends EventEmitter {
     for(const [key,job]of this.pending)if(!isAllowed(job.file,this.settings))this.pending.delete(key);
     this.schedule();this.emit('changed');
   }
-  stop(){this.stopped=true;this.generation++;clearTimeout(this.timer);this.pending.clear();this.reviewer.stop?.();}
+  stop(){this.stopped=true;this.cancelNoteReview();this.generation++;clearTimeout(this.timer);this.pending.clear();this.reviewer.stop?.();}
 }
-module.exports={DEFAULTS,hash,settingsWithDefaults,blocks,paragraphs,isAllowed,feedbackRanges,isQuestionFeedback,CodexReviewer,ReviewEngine,discoverCodex,runLocalCommand};
+module.exports={DEFAULTS,hash,settingsWithDefaults,blocks,wholeNoteBlocks,paragraphs,isAllowed,feedbackRanges,isQuestionFeedback,CodexReviewer,ReviewEngine,discoverCodex,runLocalCommand};

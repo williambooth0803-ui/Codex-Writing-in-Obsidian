@@ -32,3 +32,5 @@
 .automatic-ai-body { margin: 8px 0 12px; }
 .automatic-ai-caption { color: var(--text-faint); font-size: 0.85em; }
 .automatic-ai-dismiss { font-size: 0.9em; padding: 3px 9px; height: auto; }
+.view-action.automatic-ai-run-button { width: auto; gap: 5px; padding: 4px 8px; font-size: var(--font-ui-small); white-space: nowrap; }
+.automatic-ai-run-disabled { opacity: 0.6; pointer-events: none; }

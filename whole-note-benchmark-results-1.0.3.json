@@ -1,0 +1,68 @@
+{
+  "version": "1.0.3",
+  "testedAt": "2026-10-21T19:18:07.174Z",
+  "mode": "Explicit whole-note review with automatic reviews paused",
+  "totalMs": 9897.178082999999,
+  "run": {
+    "file": "Synthetic whole-note benchmark.md",
+    "total": 3,
+    "completed": 3,
+    "skipped": 0,
+    "comments": 3,
+    "status": "completed",
+    "cancelled": false,
+    "ownsReviewer": false
+  },
+  "automaticStillPaused": true,
+  "metrics": {
+    "requests": 1,
+    "paragraphs": 3,
+    "comments": 3,
+    "inputTokens": 12082,
+    "outputTokens": 284,
+    "lastAiMs": 9889.182417,
+    "lastTotalMs": 9893.264374999999,
+    "errors": 0
+  },
+  "samples": [
+    {
+      "paragraph": "Sonata form",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "Sonata form",
+          "comment": "Sonata form usually organizes a movement into exposition, development, and recapitulation, sometimes with an introduction or coda. It is a structure used in symphonies and chamber music as well as sonatas; a whole sonata typically contains several movements with different forms.",
+          "id": "add43968dbc39e214ebda207"
+        }
+      ],
+      "totalMs": 9891.799792,
+      "stale": false
+    },
+    {
+      "paragraph": "Exposition: contrasting keys",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "contrasting keys",
+          "comment": "In a typical major-key exposition, the music moves from the tonic to the dominant, such as C major to G major. In a minor-key movement, the contrasting key is often the relative major, such as C minor to E-flat major. These are common patterns rather than fixed requirements.",
+          "id": "7d3a40b9917ff6412fecacd8"
+        }
+      ],
+      "totalMs": 9893.215375,
+      "stale": false
+    },
+    {
+      "paragraph": "The recapitulation brings back the main thematic material in the tonic. This resolves the tonal contrast introduced by the exposition.",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "This resolves the tonal contrast introduced by the exposition.",
+          "comment": "The crucial change often occurs in the transition: it is altered so that the later theme can arrive in the tonic instead of the exposition’s contrasting key. The recapitulation therefore does more than repeat earlier music; it changes the tonal relationship between familiar themes.",
+          "id": "dbeaa9bdd4f6c9b8b0f31cb4"
+        }
+      ],
+      "totalMs": 9893.264374999999,
+      "stale": false
+    }
+  ]
+}

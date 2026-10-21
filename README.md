@@ -6,7 +6,7 @@ Automatic study feedback inside desktop Obsidian, using your existing local Code
 
 The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
 
-**Release: 1.0.2.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
+**Release: 1.0.3.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
@@ -15,6 +15,8 @@ The default focus is **context and deeper understanding**. Hover comments add us
 - Hover popovers with individual dismissal and keyboard access.
 - Explanatory context and examples in two to five sentences; no quiz or study-question prompts.
 - Earlier saved question-style comments are hidden while their history and dismissals remain intact.
+- **Run AI assistant** button at the top of each note for a fresh whole-note review on demand.
+- Progress and a Stop button; whole-note review also works while automatic reviews are paused.
 - Automatic review of new or changed prose and list items while you continue writing.
 - Review of the current passage after its own idle period, without requiring a blank line.
 - Up to three ready passages batched into one request; one request at a time.
@@ -26,7 +28,15 @@ The default focus is **context and deeper understanding**. Hover comments add us
 - Reported token totals and timing, plus timeouts and bounded retries for connection failures.
 - No AI-generated text is inserted into your Markdown.
 
-## Defaults
+## Review the whole note on demand
+
+Click **Run AI assistant** in the note header, or use **Automatic Paragraph Review: Run AI assistant on the whole note** in the command palette. It reviews existing text again, including headings, short bullets, blockquotes, and tables. Long passages are split into smaller sections; repeated identical passages share one review. Frontmatter, fenced code, and hidden comments are excluded. Feedback appears in the same hover cards without rewriting the note.
+
+The button shows progress and becomes **Stop AI assistant** during a run. Completed feedback appears as each batch returns. Changed passages are skipped, and stopping keeps feedback already received. A failed batch stops the run; click Run again to retry. This action uses Codex allowance and explicitly reviews the current note even if its folder or filename is excluded from automatic reviews. It leaves those restrictions and automatic pause/resume settings unchanged.
+
+Whole-note review starts as soon as the current request finishes and processes one batch at a time. It bypasses automatic idle delays and the minimum automatic interval for this explicit run. A long note takes several requests; automatic work waits until the run finishes. The button is available in editing and Reading view, with hover feedback visible in editing / Live Preview.
+
+## Automatic defaults
 
 | Setting | Default |
 | --- | --- |
@@ -66,15 +76,15 @@ If setup reports signed out, run `codex login` in your terminal and check again.
 
 ## Data and operation
 
-Each review sends selected passage text and nearby preceding prose from the same note to Codex. Frontmatter, fenced code, hidden comments, and quoted/table blocks are excluded from the extracted review context. Eligible changes are reviewed once; opening existing text is a baseline rather than an automatic whole-note upload.
+Each review sends selected passage text and nearby preceding prose from the same note to Codex. Frontmatter, fenced code, and hidden comments are excluded. Automatic extraction also excludes quoted/table blocks; explicitly running the whole-note assistant includes them. Eligible changes are reviewed once automatically; opening existing text is a baseline. The whole-note button explicitly reviews existing text again.
 
 Local feedback, source passage text, dismissals, settings, and aggregate usage metrics are stored in the vault's `.obsidian/plugins/automatic-paragraph-review/data.json`. They may travel with any service you use to sync plugin data. The plugin does not store an API key or copy your Codex credentials. Codex's existing authentication, account limits, and data handling apply.
 
 The plugin launches the installed Codex executable outside the vault and writes a schema-only temporary file in the operating system temporary directory, removing it after each completed or failed review. Note text is passed through the process input, not a temporary note file. The CLI uses its own authentication and runtime storage outside the vault (normally `~/.codex`); CLI-managed storage and network activity follow Codex settings and service behavior. The plugin adds no telemetry or direct network client.
 
-Requests use an ephemeral `codex exec` process, the CLI's default model and low reasoning, without user configuration. Shell execution, unified execution, connected apps, and web search are disabled for the review process; the sandbox is read-only. This version reviews the supplied text rather than researching sources or browsing your other notes. Timeout: 150 seconds. Connection failures retry up to twice with increasing cooldown. Pause cancels the current process and clears pending work.
+Requests use an ephemeral `codex exec` process, the CLI's default model and low reasoning, without user configuration. Shell execution, unified execution, connected apps, and web search are disabled for the review process; the sandbox is read-only. This version reviews the supplied text rather than researching sources or browsing your other notes. Timeout: 150 seconds. Automatic connection failures retry up to twice with increasing cooldown. Pausing automatic reviews cancels automatic work and clears its queue. Use **Stop AI assistant** to cancel a whole-note run.
 
-Stored history is bounded to 300 passage results and 4,000 reviewed passage identifiers. Very short fragments and ambiguous identical passages are skipped. Large prose blocks above the configured maximum are skipped. Persistent results are tied to the exact source passage; editing it removes outdated feedback and makes the changed passage eligible for a new review.
+Stored history is bounded to 300 passage results and 4,000 reviewed passage identifiers. Automatic reviews skip very short fragments, ambiguous identical passages, and prose blocks above the configured maximum. Whole-note reviews include short fragments, share feedback across identical passages, and split long blocks. Feedback for notes beyond the history limit may replace earlier results. Persistent results are tied to the exact source passage; editing it removes outdated feedback and makes the changed passage eligible for a new review.
 
 ## Development
 
@@ -84,8 +94,10 @@ Runtime files are already built. Source and tests are included for inspection:
 - `review-core.js`: Markdown extraction, review queue, Codex client, validation.
 - `build.js`: Bundles the core into `main.js`, avoiding stale module caches on plugin reload.
 - `review-core.test.js`: Behavioral checks for the review engine.
-- `tests/editor-integration.test.js`: Tests using real CodeMirror in a test DOM.
+- `tests/editor-integration.test.js`: Tests using real CodeMirror in a test DOM and the note-header button.
+- `tests/whole-note.test.js`: Whole-note batching, rereview, cancellation, edits, renames, and automatic queue coordination.
 - `benchmark.js`: Makes one real Codex request containing three synthetic passages.
+- `whole-note-benchmark.js`: Optional live check of explicit whole-note review while automatic reviews stay paused.
 
 For development, use Node.js 24.15 or later and pnpm 11.25.0:
 
