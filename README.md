@@ -4,15 +4,17 @@ Automatic Paragraph Review for desktop Obsidian.
 
 Automatic study feedback inside desktop Obsidian, using your existing local Codex sign-in. Write normally. Relevant passages receive a subtle dotted underline. Hover, click the underline, or move your text cursor into it to read the feedback. No recurring prompt or chat panel is required.
 
-The default focus is **understanding, reasoning, and possible factual gaps**. Feedback may identify an unsupported inference, ask a useful study question, or flag something to verify. It preserves shorthand and your voice. Factual concerns are not represented as sourced fact checks.
+The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
 
-**Release: 1.0.1.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
+**Release: 1.0.2.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
 ## What is included
 
 - Hover popovers with individual dismissal and keyboard access.
+- Explanatory context and examples in two to five sentences; no quiz or study-question prompts.
+- Earlier saved question-style comments are hidden while their history and dismissals remain intact.
 - Automatic review of new or changed prose and list items while you continue writing.
 - Review of the current passage after its own idle period, without requiring a blank line.
 - Up to three ready passages batched into one request; one request at a time.
@@ -103,3 +105,5 @@ The benchmark consumes Codex allowance and overwrites `benchmark-results.json`. 
 Source is licensed under [MIT](LICENSE), copyright 2026 williambooth0803-ui. Report reproducible issues in [GitHub Issues](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/issues), with plugin, Obsidian, operating system, and Codex versions. Remove personal note content and credentials from reports.
 
 Pushing a new manifest/package version to `main` runs the checks and publishes a matching GitHub release only when they pass. Existing releases are left unchanged. See [PUBLISHING.md](PUBLISHING.md) for the directory submission procedure.
+
+Version 1.0.2 changes the old Understanding focus to Context and deeper understanding automatically. Existing Clarity and Both selections remain available, with direct explanations in every mode. The screenshots from the original release illustrate the hover interface; the new default supplies explanatory context instead of study questions.

@@ -23,7 +23,7 @@ function setup(){
   plugin.installEditor();
   const text='A correlation between lecture attendance and exam results proves that attendance alone causes better scores.\n\n';
   const b=core.blocks(text)[0];
-  const result={key:'saved-result',paragraph:b,totalMs:14000,comments:[{id:'comment-one',category:'reasoning',quote:'proves that attendance alone causes better scores',comment:'Could motivation explain both attendance and scores?'}]};
+  const result={key:'saved-result',paragraph:b,totalMs:14000,comments:[{id:'comment-one',category:'context',quote:'proves that attendance alone causes better scores',comment:'Motivation can affect both attendance and scores. This is a confounding variable, so a correlation alone does not isolate the effect of attendance.'}]};
   const parent=document.createElement('div');document.body.appendChild(parent);
   const view=new CMView.EditorView({state:CMState.EditorState.create({doc:text,extensions:plugin.extensions}),parent});
   view.dispatch({effects:plugin.refreshEffect.of([result])});
@@ -38,7 +38,7 @@ test('real CodeMirror renders only underlines; cursor opens a popover; Escape cl
     view.dispatch({selection:{anchor:range.from+2}});assert.equal(view.state.field(plugin.feedbackField).pinned,'comment-one');
     await new Promise(resolve=>setTimeout(resolve,35));
     const popover=parent.querySelector('.automatic-ai-popover');assert.ok(popover,'keyboard-accessible tooltip rendered');
-    assert.ok(popover.textContent.includes('Could motivation'));
+    assert.ok(popover.textContent.includes('confounding variable'));assert.ok(popover.textContent.includes('Context'));
     view.contentDOM.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     assert.equal(view.state.field(plugin.feedbackField).pinned,null);
   }finally{view.destroy();parent.remove();}

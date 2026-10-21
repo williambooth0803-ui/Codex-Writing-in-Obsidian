@@ -1,3 +1,12 @@
+# 1.0.2
+
+- Changed default feedback to context, explanations, conceptual/historical connections, and concrete examples that deepen understanding.
+- Added context comments for already-correct passages; corrections are no longer the only useful intervention.
+- Removed study questions from generation and rejected question-style output before rendering.
+- Hid earlier saved question-style comments without deleting feedback history or dismissals.
+- Migrated the old Understanding focus to Context and deeper understanding, preserving other preferences.
+- Updated hover labels, standing-preference examples, and release documentation.
+
 # 1.0.1
 
 - Added a self-contained three-file release with embedded schema and temporary-file cleanup.

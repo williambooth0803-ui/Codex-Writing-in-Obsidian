@@ -1,4 +1,4 @@
-# Verification — release 1.0.1
+# Verification — release 1.0.2
 
 Validated October 20, 2026, on this Mac with Obsidian 1.13.7, Codex CLI 0.163.0, and Node.js 24.19.0 for development tests.
 
@@ -63,3 +63,9 @@ These are measured feasibility and functionality checks, not an hour-long classr
 The entry is public at https://community.obsidian.md/plugins/automatic-paragraph-review with version 1.0.1, MIT licensing, the hover screenshot, and an Add to Obsidian link. Obsidian's completed review reproduced release `main.js` byte-for-byte, found no suspicious network patterns or vulnerable dependencies, and found no obfuscation.
 
 The review also includes advisory filesystem/process capability warnings because the plugin launches the local Codex executable and creates a temporary schema. These operations are disclosed in the README. Other advisories cover CSS compatibility/`:has`, missing optional GitHub artifact attestations, the extra manual ZIP/checksum assets, and the release snapshot's README heading. The heading is corrected in the current source. These advisories did not prevent publication; they are not claims of a clean scorecard or a human security audit.
+
+## Release 1.0.2 explanatory-context checks
+
+All 19 automated checks passed, including the existing review queue/editor/installation checks, migration of the old Understanding mode, display of Context labels, hiding legacy question feedback without deleting history, and filtering question-style responses while retaining useful context.
+
+One real Codex request reviewed three already-correct synthetic passages about Boris Godunov, sonata form, and retrieval practice. Each received one Context comment with additional explanation and no questions. Total automatic paragraph-to-result time was 22.38 seconds, including the normal 8-second eligibility delay. Exact inputs, outputs, timings, and reported usage are in `benchmark-results-1.0.2.json`. This validates these examples; factual additions remain model-generated and are not externally researched or verified.

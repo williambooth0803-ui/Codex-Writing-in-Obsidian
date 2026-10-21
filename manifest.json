@@ -1,9 +1,9 @@
 {
   "id": "automatic-paragraph-review",
   "name": "Automatic Paragraph Review",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.13.7",
-  "description": "Automatic study feedback as hover annotations: reasoning, useful questions, and possible factual gaps, using your local Codex sign-in.",
+  "description": "Automatic context, explanations, and examples as hover annotations to deepen your understanding, using your local Codex sign-in.",
   "author": "williambooth0803-ui",
   "isDesktopOnly": true,
   "authorUrl": "https://github.com/williambooth0803-ui"

@@ -148,7 +148,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     const doc=view.dom.ownerDocument,dom=doc.createElement('div');
     dom.className='automatic-ai-popover';dom.setAttribute('role','dialog');dom.setAttribute('aria-label','AI feedback');
     const el=(tag,text,cls,parent=dom)=>{const node=doc.createElement(tag);node.textContent=text;if(cls)node.className=cls;parent.appendChild(node);return node;};
-    const labels={reasoning:'Reasoning',question:'Study question',verify:'Verify this',clarity:'Clarity'};
+    const labels={context:'Context',reasoning:'Explanation',verify:'Verify this',clarity:'Clarity'};
     const header=el('div','','automatic-ai-header');
     el('span',labels[range.comment.category]||'AI feedback','automatic-ai-label',header);
     const close=el('button','×','automatic-ai-close',header);close.setAttribute('aria-label','Close feedback');
@@ -247,10 +247,10 @@ class ReviewSettings extends PluginSettingTab {
       plugin.settings.enabled=value;plugin.loop.setPaused(!value);plugin.persist();plugin.updateStatus();
     }));
     new Setting(this.containerEl).setName('Feedback focus').addDropdown(drop=>drop
-      .addOption('understanding','Understanding, reasoning, and factual gaps').addOption('clarity','Clarity and organization')
-      .addOption('both','Both, with restrained feedback').setValue(plugin.settings.focus).onChange(value=>{plugin.settings.focus=value;update();}));
+      .addOption('context','Context and deeper understanding').addOption('clarity','Clarity and organization')
+      .addOption('both','Context, explanations, and clarity').setValue(plugin.settings.focus).onChange(value=>{plugin.settings.focus=value;update();}));
     new Setting(this.containerEl).setName('Writing preferences').setDesc('Optional standing instructions. You do not need to prompt each review.').addTextArea(text=>text
-      .setValue(plugin.settings.customInstructions).setPlaceholder('For example: ask questions that help me prepare for exams.').onChange(value=>{plugin.settings.customInstructions=value;update();}));
+      .setValue(plugin.settings.customInstructions).setPlaceholder('For example: explain musical terms and connect them to their historical context.').onChange(value=>{plugin.settings.customInstructions=value;update();}));
     const seconds=(name,desc,key)=>new Setting(this.containerEl).setName(name).setDesc(desc).addText(text=>text.setValue(String(plugin.settings[key]/1000)).onChange(value=>{
       const n=Number(value);if(Number.isFinite(n)&&n>0){plugin.settings[key]=n*1000;update();}
     }));

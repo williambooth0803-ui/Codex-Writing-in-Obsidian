@@ -1,6 +1,6 @@
 # Publishing
 
-Release 1.0.1 is published on GitHub and in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review) under the MIT license, with `williambooth0803-ui` as author. The GitHub Actions workflow verifies the committed bundle, runs all 18 automated checks, validates packaging, and publishes a matching version tag and release when a version is new.
+Release 1.0.1 was published on GitHub and in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review) under the MIT license, with `williambooth0803-ui` as author. The GitHub Actions workflow verifies the committed bundle, runs all 19 automated checks, validates packaging, and publishes a matching version tag and release when a version is new.
 
 ## GitHub release
 
@@ -19,3 +19,5 @@ For future ownership or listing administration, sign in at [community.obsidian.m
 Choose the personal account owner. The name, description, desktop restriction, version, and author come from `manifest.json`. Review the developer policies and maintenance commitments personally before submitting. The current listing is public. Review any new release checks when updating it.
 
 Follow [Obsidian's submission instructions](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). The verified behaviors and remaining platform/classroom testing limits are recorded in [verification.md](verification.md).
+
+Release 1.0.2 updates the existing plugin to explanatory context and examples, removes study questions, and preserves identity, settings, history, and one-time consent. The normal GitHub release workflow publishes the matching version and Obsidian detects the update.

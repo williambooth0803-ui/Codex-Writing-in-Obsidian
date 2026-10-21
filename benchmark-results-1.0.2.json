@@ -1,0 +1,63 @@
+{
+  "version": "1.0.2",
+  "testedAt": "2026-10-21T15:12:52.887Z",
+  "trigger": "Automatic 8-second delay after paragraph completion",
+  "mode": "Three passages in one real Codex request",
+  "metrics": {
+    "requests": 1,
+    "paragraphs": 3,
+    "comments": 3,
+    "inputTokens": 12145,
+    "outputTokens": 293,
+    "lastAiMs": 14366.640916999999,
+    "lastTotalMs": 22380.174542,
+    "errors": 0
+  },
+  "samples": [
+    {
+      "subject": "Music history",
+      "paragraph": "Mussorgsky uses non-functional harmony and recurring Russian folk material in Boris Godunov. Writing an opera in Russian also contributes to the national character of the work.",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "Writing an opera in Russian also contributes to the national character of the work.",
+          "comment": "Mussorgsky also shaped vocal lines around the stresses and rhythms of Russian speech, connecting national character to musical delivery as well as language choice. The opera’s public scenes give the Russian people a collective dramatic presence alongside Boris’s personal tragedy.",
+          "id": "d78facb23686627162b3d788"
+        }
+      ],
+      "aiMs": 14366.640916999999,
+      "totalMs": 22378.28775,
+      "stale": false
+    },
+    {
+      "subject": "Musical form",
+      "paragraph": "In sonata form, the exposition introduces contrasting tonal areas. The recapitulation brings the main thematic material back and generally resolves the tonal contrast in the tonic.",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "generally resolves the tonal contrast in the tonic",
+          "comment": "This resolution often requires changing the transition so that it no longer modulates away from the home key. A secondary theme first heard in the dominant in a major-key exposition can therefore return with much of its melody intact while acquiring a different tonal role in the recapitulation.",
+          "id": "2be37270524be6558150e118"
+        }
+      ],
+      "aiMs": 14366.640916999999,
+      "totalMs": 22380.123875,
+      "stale": false
+    },
+    {
+      "subject": "Learning and memory",
+      "paragraph": "Retrieval practice means trying to recall what I learned without looking back at my notes. It is different from rereading the same page.",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "trying to recall what I learned without looking back at my notes",
+          "comment": "Retrieval does more than measure memory; successfully bringing information to mind can strengthen later access to it. Checking the answer afterward supplies corrective feedback, especially when recall was incomplete or mistaken. Spacing retrieval attempts across several days can support longer-term retention.",
+          "id": "98acb021c5debe891c50a9c3"
+        }
+      ],
+      "aiMs": 14366.640916999999,
+      "totalMs": 22380.174542,
+      "stale": false
+    }
+  ]
+}

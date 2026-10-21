@@ -1,9 +1,9 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const {ReviewEngine,CodexReviewer}=require('./review-core');
 const samples=[
-  {subject:'Statistics',text:'Students who attend more lectures tend to score higher on exams. This correlation proves that attendance alone causes better exam results, so the study does not need to account for prior knowledge, motivation, or time spent studying outside class.'},
-  {subject:'Music history',text:'In sonata form, the exposition introduces the main thematic material and establishes a contrast between tonal areas. The development transforms that material and moves through different keys. The recapitulation brings the main themes back, generally resolving the earlier tonal contrast in the tonic.'},
-  {subject:'Learning and memory',text:'Retrieval practice means trying to recall information without looking at the notes. Rereading feels easier because the material becomes familiar. If a page feels familiar, that guarantees I will be able to explain the same material from memory a week later, even without testing myself.'}
+  {subject:'Music history',text:'Mussorgsky uses non-functional harmony and recurring Russian folk material in Boris Godunov. Writing an opera in Russian also contributes to the national character of the work.'},
+  {subject:'Musical form',text:'In sonata form, the exposition introduces contrasting tonal areas. The recapitulation brings the main thematic material back and generally resolves the tonal contrast in the tonic.'},
+  {subject:'Learning and memory',text:'Retrieval practice means trying to recall what I learned without looking back at my notes. It is different from rereading the same page.'}
 ];
 async function main(){
   const loop=new ReviewEngine(new CodexReviewer(),{minIntervalMs:0,enabled:true});const results=[];

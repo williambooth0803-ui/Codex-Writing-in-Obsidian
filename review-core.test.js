@@ -4,7 +4,7 @@ const {ReviewEngine,blocks,feedbackRanges,settingsWithDefaults,isAllowed,hash}=r
 const text='Students who attend lectures score higher on exams. This proves attendance alone causes higher scores.';
 const other='Rereading feels familiar, so it guarantees I can recall the material from memory a week later.';
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-function answer(targets){return {reviews:targets.map(t=>({id:t.id,comments:[{id:hash(t.id),category:'reasoning',quote:t.text.slice(0,30),comment:'What evidence supports the causal inference?'}]})),aiMs:1,usage:{input_tokens:100,output_tokens:10}};}
+function answer(targets){return {reviews:targets.map(t=>({id:t.id,comments:[{id:hash(t.id),category:'reasoning',quote:t.text.slice(0,30),comment:'Correlation does not isolate causation because another variable can affect both outcomes.'}]})),aiMs:1,usage:{input_tokens:100,output_tokens:10}};}
 function setup(reviewBatch=async targets=>answer(targets),settings={},saved={}){
   const reviewer={reviewBatch,stop(){}};const engine=new ReviewEngine(reviewer,{enabled:true,...settings},saved);
   Object.assign(engine.settings,{pauseMs:8,idleMs:20,minIntervalMs:0});return engine;
@@ -112,4 +112,20 @@ test('failure queues a bounded retry and pause/resume clears the cooldown',async
     loop.setPaused(true);const completed=once(loop,'completed');loop.setPaused(false);await completed;
     assert.equal(calls,2);assert.equal(loop.lastError,null);assert.equal(loop.metrics.errors,1);
   }finally{loop.stop();}
+});
+
+
+test('context is the default and old study questions are hidden without deleting saved history',()=>{
+  assert.equal(settingsWithDefaults().focus,'context');
+  assert.equal(settingsWithDefaults({focus:'understanding'}).focus,'context');
+  assert.equal(settingsWithDefaults({focus:'clarity'}).focus,'clarity');
+  const paragraph=blocks(text+'\n\n')[0];
+  const comments=[
+    {id:'old-question',category:'question',quote:'attendance alone',comment:'Explain the causal connection.'},
+    {id:'old-reasoning',category:'reasoning',quote:'attendance alone',comment:'Could motivation explain this?'},
+    {id:'new-context',category:'context',quote:'attendance alone',comment:'Motivation can affect both attendance and scores. This makes it a possible confounding variable.'}
+  ];
+  const result={key:'saved',paragraph,comments};
+  assert.deepEqual(feedbackRanges(text,[result]).map(r=>r.comment.id),['new-context']);
+  assert.equal(result.comments.length,3,'saved history remains intact');
 });
