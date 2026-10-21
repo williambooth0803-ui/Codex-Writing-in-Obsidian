@@ -1,4 +1,4 @@
-# Codex-Writing-in-Obsidian
+# Automatic Paragraph Review
 
 Automatic Paragraph Review for desktop Obsidian.
 
@@ -6,7 +6,7 @@ Automatic study feedback inside desktop Obsidian, using your existing local Code
 
 The default focus is **understanding, reasoning, and possible factual gaps**. Feedback may identify an unsupported inference, ask a useful study question, or flag something to verify. It preserves shorthand and your voice. Factual concerns are not represented as sourced fact checks.
 
-**Release: 1.0.1.** Download the [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) for manual installation. Obsidian Community directory submission and approval are separate; this is not yet a directory listing.
+**Release: 1.0.1.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
@@ -48,6 +48,8 @@ Install the plugin using the instructions below. Write a paragraph or list item,
 Hover over an underline, click it, or move the text cursor into it to read feedback. Escape closes a keyboard-opened popover. The command **Automatic Paragraph Review: Show AI feedback at cursor** is also available. Dismiss removes an individual comment and saves that choice until the passage changes. **Dismiss feedback in current note** removes that note's visible comments.
 
 ## Installation and one-time setup
+
+Install from the [Community listing](https://community.obsidian.md/plugins/automatic-paragraph-review) using **Add to Obsidian**, then install and enable the plugin in Obsidian. If you use this method, skip manual-copy steps 2 and 3 below. Codex installation and one-time connection setup are still required.
 
 1. Install the [official Codex CLI](https://developers.openai.com/codex/cli/) and sign in with `codex login`. The plugin does not install Codex for you.
 2. Download the manual-install ZIP from the [latest GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) and extract its `automatic-paragraph-review` folder into `<vault>/.obsidian/plugins/`. Alternatively, create that folder and copy the release assets **main.js**, **manifest.json**, and **styles.css** into it. These are the only three runtime files.

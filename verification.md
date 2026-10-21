@@ -57,3 +57,9 @@ The release build was also loaded in the existing test vault. Its new settings c
 The runtime bundle contains the review core, so plugin reloads cannot retain an old separately cached engine. Installation requires only `main.js`, `manifest.json`, and `styles.css`. The manual ZIP contains exactly these files in the plugin folder. The JSON schema is embedded in `main.js`; it is written temporarily for the CLI and removed afterward. Source and development tests remain in the GitHub repository, outside the runtime ZIP. The packager checks manifest versions, license, archive contents, and SHA-256 checksums.
 
 These are measured feasibility and functionality checks, not an hour-long classroom endurance test. This version does not perform sourced fact-checking, rewrite notes, support mobile, or provide feedback in Reading view. Other operating systems and older Obsidian releases have not been live-tested.
+
+## Community directory publication
+
+The entry is public at https://community.obsidian.md/plugins/automatic-paragraph-review with version 1.0.1, MIT licensing, the hover screenshot, and an Add to Obsidian link. Obsidian's completed review reproduced release `main.js` byte-for-byte, found no suspicious network patterns or vulnerable dependencies, and found no obfuscation.
+
+The review also includes advisory filesystem/process capability warnings because the plugin launches the local Codex executable and creates a temporary schema. These operations are disclosed in the README. Other advisories cover CSS compatibility/`:has`, missing optional GitHub artifact attestations, the extra manual ZIP/checksum assets, and the release snapshot's README heading. The heading is corrected in the current source. These advisories did not prevent publication; they are not claims of a clean scorecard or a human security audit.
