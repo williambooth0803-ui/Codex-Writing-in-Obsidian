@@ -1,0 +1,98 @@
+{
+  "version": "1.0.5",
+  "testedAt": "2026-10-22T15:55:38.290Z",
+  "syntheticNote": "Unselected introductory text.\n\nThe recapitulation resolves tonal contrast by returning contrasting themes to the tonic.\n\nUnselected closing text.",
+  "selection": {
+    "from": 31,
+    "to": 119
+  },
+  "question": "How does returning a theme in the tonic resolve the contrast if its melody remains different?",
+  "selectionMs": 8824.682916,
+  "questionMs": 7795.124333,
+  "selectionRun": {
+    "file": "Synthetic.md",
+    "scope": "selection",
+    "total": 1,
+    "completed": 1,
+    "skipped": 0,
+    "comments": 1,
+    "status": "completed",
+    "cancelled": false,
+    "ownsReviewer": false
+  },
+  "questionRun": {
+    "file": "Synthetic.md",
+    "scope": "question",
+    "total": 1,
+    "completed": 1,
+    "skipped": 0,
+    "comments": 0,
+    "status": "completed",
+    "cancelled": false,
+    "ownsReviewer": false,
+    "answer": {
+      "format": "paragraph",
+      "comment": "The note describes resolution of tonal contrast, not the elimination of melodic differences. In general sonata-form practice, contrasting themes appear in different keys during the exposition. In the recapitulation, the contrasting theme returns in the tonic, the movement’s home key. Its melody can remain recognizable and distinct because melody and key are separate features. The themes now share a tonal home, resolving their earlier opposition of keys while preserving their contrasting musical identities.",
+      "bullets": [],
+      "category": "context",
+      "quote": "answer",
+      "id": "444aa3d6e80707b88e5e3cef"
+    },
+    "anchor": {
+      "from": 31,
+      "to": 119,
+      "text": "The recapitulation resolves tonal contrast by returning contrasting themes to the tonic.",
+      "complete": true,
+      "id": "4d53ef8769a99e87a6c12da0",
+      "selected": true,
+      "containerId": "9ea9186cbda5213d1943abc6",
+      "containerFrom": 31,
+      "documentId": "8f7cd6d2728681a12c1c0f56",
+      "offset": 0
+    }
+  },
+  "feedback": [
+    {
+      "key": "Synthetic.md\u00004d53ef8769a99e87a6c12da0",
+      "file": "Synthetic.md",
+      "paragraph": {
+        "from": 31,
+        "to": 119,
+        "text": "The recapitulation resolves tonal contrast by returning contrasting themes to the tonic.",
+        "complete": true,
+        "id": "4d53ef8769a99e87a6c12da0",
+        "selected": true,
+        "containerId": "9ea9186cbda5213d1943abc6",
+        "containerFrom": 31,
+        "documentId": "8f7cd6d2728681a12c1c0f56",
+        "offset": 0
+      },
+      "manual": true,
+      "comments": [
+        {
+          "category": "context",
+          "quote": "The recapitulation resolves tonal contrast",
+          "comment": "In sonata form, the exposition typically places the second theme group in a contrasting key, often the dominant in major-key works or the relative major in minor-key works. The recapitulation usually adjusts the transition so that the second group arrives in the tonic instead. This lets contrasting thematic material return while resolving the large-scale harmonic tension.",
+          "format": "paragraph",
+          "bullets": [],
+          "id": "0f6d49a00f0c5b062d21787b"
+        }
+      ],
+      "aiMs": 8791.479458,
+      "totalMs": 8808.727708,
+      "stale": false,
+      "at": "2026-10-22T15:55:30.484Z"
+    }
+  ],
+  "automaticStillPaused": true,
+  "metrics": {
+    "requests": 2,
+    "paragraphs": 1,
+    "comments": 1,
+    "inputTokens": 23986,
+    "outputTokens": 238,
+    "lastAiMs": 7789.837250000002,
+    "lastTotalMs": 8808.727708,
+    "errors": 0
+  }
+}

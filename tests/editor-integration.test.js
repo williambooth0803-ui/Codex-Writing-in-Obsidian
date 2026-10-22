@@ -11,7 +11,7 @@ const CMState=require('@codemirror/state'),CMView=require('@codemirror/view');
 const root=path.resolve(__dirname,'..');
 const core=require(path.join(root,'review-core'));
 const sandbox={module:{exports:{}},require(name){
-  if(name==='obsidian')return {Plugin:class{},PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownView:class{}};
+  if(name==='obsidian')return {Plugin:class{},PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownView:class{},Modal:class{constructor(){this.modalEl=document.createElement('div');this.contentEl=document.createElement('div');this.modalEl.appendChild(this.contentEl);}open(){document.body.appendChild(this.modalEl);this.onOpen?.();}close(){this.onClose?.();this.modalEl.remove();}}};
   if(name==='@codemirror/state')return CMState;if(name==='@codemirror/view')return CMView;return require(name);
 },console,setTimeout,clearTimeout,performance,process};
 vm.runInNewContext(fs.readFileSync(path.join(root,'main.js'),'utf8'),sandbox);
@@ -65,7 +65,7 @@ test('note-header Run AI assistant button reviews an existing note while automat
   plugin.loop.on('changed',()=>plugin.updateRunButtons());
   const run=plugin.runCurrentNote.bind(plugin);let work;plugin.runCurrentNote=view=>work=run(view);
   try{
-    plugin.installNoteActions();plugin.installNoteActions();assert.equal(parent.querySelectorAll('[role="button"]').length,1);
+    plugin.installNoteActions();plugin.installNoteActions();assert.equal(parent.querySelectorAll('[role="button"]').length,2);
     const button=parent.querySelector('[role="button"]');assert.equal(button.textContent,'Run AI assistant');button.click();
     assert.match(button.textContent,/Stop AI assistant/);await work;
     assert.equal(plugin.loop.manualRun.status,'completed');assert.equal(plugin.loop.manualRun.total,3);
@@ -114,4 +114,40 @@ test('read-only notes show disabled Add buttons and reject note changes',()=>{
   const range=view.state.field(plugin.feedbackField).ranges[0],card=plugin.createPopover(view,range);assert.equal(card.querySelector('.automatic-ai-add').disabled,true);
   plugin.addFeedbackToNote(view,range);assert.equal(view.state.doc.toString(),text);
  }finally{plugin.loop.stop();view.destroy();parent.remove();}
+});
+
+test('highlighting text changes the header action to Review selection and sends only that selection',async()=>{
+ const plugin=new Plugin();plugin.core=core;plugin.settings=core.settingsWithDefaults();plugin.noteActions=new Map();plugin.connection={ready:true};
+ const text='Unselected introduction.\n\nThe tonic is the home key.\n\nUnselected tail.',from=text.indexOf('tonic'),to=text.indexOf('key.')+3;
+ const parent=document.createElement('div');document.body.appendChild(parent);let chosen=true,work,seen;
+ const view={file:{path:'Selection.md'},editor:{getValue:()=>text,getSelection:()=>chosen?text.slice(from,to):'',getCursor:kind=>({line:0,ch:kind==='to'?to:from}),posToOffset:p=>p.ch},addAction(icon,title,callback){const el=document.createElement('div');el.addEventListener('click',callback);parent.appendChild(el);return el;}};
+ plugin.app={workspace:{getLeavesOfType:()=>[{view}]}};plugin.registerDomEvent=(el,event,cb)=>el.addEventListener(event,cb);
+ plugin.loop=new core.ReviewEngine({async reviewBatch(targets,context){seen={targets,context};return {reviews:targets.map(t=>({id:t.id,comments:[]}))};}},plugin.settings);
+ plugin.loop.on('changed',()=>plugin.updateRunButtons());const original=plugin.runCurrentNote.bind(plugin);plugin.runCurrentNote=(view,options)=>work=original(view,options);
+ try{plugin.installNoteActions();const button=parent.querySelector('[aria-label="Review selection"]');assert.ok(button);button.click();await work;assert.equal(seen.targets[0].text,text.slice(from,to));assert.equal(seen.context,'');chosen=false;plugin.updateRunButtons();assert.equal(button.textContent,'Run AI assistant');}finally{plugin.loop.stop();parent.remove();}
+});
+
+test('question dialog defaults to selected context, answers on demand, caches the answer and adds it using the real editor',async()=>{
+ const {plugin,view,parent,text}=setup();let seen;
+ const file={path:'Question.md'},native={file,editor:{cm:view,getValue:()=>view.state.doc.toString(),getSelection:()=>text.slice(2,35),getCursor:kind=>({line:0,ch:kind==='to'?35:2}),posToOffset:p=>p.ch}};
+ plugin.findView=()=>native;plugin.connection={ready:true};plugin.app={};
+ plugin.loop=new core.ReviewEngine({async answerQuestion(question,context){seen={question,context};return{comment:{id:'qa',format:'paragraph',comment:'Motivation may influence both attendance and scores. This is a confounder.',bullets:[],category:'context'},aiMs:1};}},plugin.settings);
+ try{
+  plugin.openQuestion(native);const modal=plugin.questionModal;assert.equal(modal.scope.value,'selection');assert.equal(seen,undefined);
+  modal.input.value='What else could explain the relationship?';await modal.submit();assert.equal(seen.context,text.slice(2,35));assert.ok(modal.answerEl.textContent.includes('confounder'));
+  modal.answerEl.querySelector('button').click();assert.ok(view.state.doc.toString().includes('This is a confounder.'));assert.equal(plugin.loop.pending.size,0);
+  assert.equal(modal.answerEl.querySelector('button').textContent,'Already in note');modal.close();assert.equal(plugin.questionModal,null);
+ }finally{plugin.questionModal?.close();plugin.loop.stop();view.destroy();parent.remove();}
+});
+
+test('closing the question dialog cancels its pending request without enabling automatic reviews',async()=>{
+ const {plugin,view,parent,text}=setup();let finish,stops=0;const native={file:{path:'Question.md'},editor:{cm:view,getValue:()=>text,getSelection:()=>''}};
+ plugin.app={};plugin.connection={ready:true};plugin.loop=new core.ReviewEngine({async answerQuestion(){await new Promise(r=>finish=r);return {comment:{id:'a',format:'paragraph',comment:'A specific explanation.',bullets:[]}};},stop(){stops++;}},plugin.settings);
+ try{plugin.openQuestion(native);const modal=plugin.questionModal;modal.input.value='Explain this relationship.';const pending=modal.submit();modal.close();finish();await pending;assert.equal(stops,1);assert.equal(plugin.loop.manualRun.status,'cancelled');assert.equal(plugin.loop.paused,true);}finally{plugin.loop.stop();view.destroy();parent.remove();}
+});
+
+test('stopping a question while the connection is being checked prevents the AI request',async()=>{
+ const {plugin,view,parent,text}=setup();let connect,calls=0;const native={file:{path:'Question.md'},editor:{cm:view,getValue:()=>text,getSelection:()=>''}};
+ plugin.app={};plugin.connection={ready:false};plugin.verifyConnection=()=>new Promise(r=>connect=r);plugin.loop=new core.ReviewEngine({async answerQuestion(){calls++;} },plugin.settings);
+ try{plugin.openQuestion(native);const modal=plugin.questionModal;modal.input.value='Explain this.';const pending=modal.submit();await modal.submit();connect({ready:true});await pending;assert.equal(calls,0);assert.match(modal.status.textContent,/stopped/);modal.close();}finally{plugin.questionModal?.close();plugin.loop.stop();view.destroy();parent.remove();}
 });

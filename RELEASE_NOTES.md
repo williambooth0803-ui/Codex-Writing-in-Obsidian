@@ -1,11 +1,11 @@
-Version 1.0.4 makes hover feedback easy to add to your notes. The AI now chooses **2–5 concise bullet points** when several distinct ideas fit, or a **short paragraph** when a connected explanation works better.
+Version 1.0.5 adds **Review selection** and **Ask about this note**.
 
-- Click **Add** beside one bullet, **Add all to note** for a group, or **Add to note** for a paragraph.
-- Additions appear below the reviewed passage in real Markdown. Existing source text is preserved; normal Obsidian Undo works.
-- List-item additions use nested indentation. Duplicate additions are disabled; undoing or removing the inserted text makes it addable again.
-- Stale/dismissed feedback and read-only notes cannot be changed through Add controls.
-- Adding saved feedback makes no AI request and does not automatically send the inserted text back for review.
-- Older saved paragraphs remain addable. Use Run AI assistant to generate fresh feedback in the new formats.
-- All 35 automated checks pass, including real CodeMirror button actions, Markdown placement, legacy feedback, and output validation.
+- Highlight text to change the main button to Review selection. The request includes only eligible highlighted text, including partial paragraphs. The editor right-click menu and command palette also offer selection review.
+- Use the speech-bubble action to ask a specific question. Choose selected text or the whole note as context; the dialog shows the amount sent before submission.
+- Answers use the note context and general knowledge, with paragraph/bullet formatting and Add controls. They do not browse or claim external verification.
+- Questions share the existing request queue and can be stopped. Closing the dialog stops its pending question. Automatic review settings stay unchanged.
+- Question context is capped at 60,000 characters; larger contexts require a smaller selection. Frontmatter, fenced code, and hidden comments are omitted.
+- Latest answers remain available in memory for the plugin session when context matches. Add an answer to keep it in the note across restarts.
+- All 47 automated checks pass. Live synthetic tests took 8.82 seconds for selection feedback and 7.80 seconds for a specific question; timing varies with context and service load.
 
-The three runtime files remain `main.js`, `manifest.json`, and `styles.css`, with the manual ZIP and SHA-256 checksums attached. Requires desktop Obsidian 1.13.7+ and a separately installed, signed-in Codex CLI. Reviews use Codex allowance. Feedback remains model-generated; uncertain factual additions should be verified.
+The three runtime files remain main.js, manifest.json, and styles.css. Requires desktop Obsidian 1.13.7+ and an installed, signed-in Codex CLI. AI requests use account allowance. Note text changes only when you choose an Add control. Native UI validation is deferred to avoid interrupting the user's active Obsidian session.

@@ -25,7 +25,7 @@ test('fresh three-file installation reviews using an embedded schema and removes
     const capture=path.join(temp,'schema-path.txt'),fake=path.join(temp,'fake-codex');
     fs.writeFileSync(fake,`#!${process.execPath}\nconst fs=require('node:fs');\nconst args=process.argv.slice(2);\nconst schema=args[args.indexOf('--output-schema')+1];\nif(!fs.existsSync(schema)||!JSON.parse(fs.readFileSync(schema)).properties.reviews)process.exit(9);\nfs.writeFileSync(${JSON.stringify(capture)},schema);\nlet input='';process.stdin.on('data',d=>input+=d);process.stdin.on('end',()=>{const data=JSON.parse(input.split('NOTE_DATA: ')[1]);console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({reviews:data.targets.map(t=>({id:t.id,comments:[{category:'question',quote:t.text.slice(0,20),comment:'What does this mean?'},{category:'context',quote:t.text.slice(0,20),comment:'Could this be explained?'},{category:'context',quote:t.text.slice(0,20),comment:'A controlled comparison isolates one variable while keeping the others similar.'}]}))})}}));console.log(JSON.stringify({type:'turn.completed',usage:{input_tokens:10,output_tokens:5}}));});\n`,{mode:0o755});
     const sandbox={module:{exports:{}},process,performance,console,setTimeout,clearTimeout,require(name){
-      if(name==='obsidian')return{Plugin:class{},PluginSettingTab:class{},MarkdownView:class{}};
+      if(name==='obsidian')return{Plugin:class{},PluginSettingTab:class{},MarkdownView:class{},Modal:class{}};
       if(name==='@codemirror/state'||name==='@codemirror/view')return{};
       return require(name);
     }};

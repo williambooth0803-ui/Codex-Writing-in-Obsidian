@@ -1,3 +1,12 @@
+# 1.0.5
+
+- Added selection-only review from the note header, editor context menu, and command palette, including partial paragraphs.
+- Added Ask about this note with a specific question, selected/whole-note context choice, direct answers, and Add controls.
+- Limited explicit selection requests to highlighted text; omitted protected content and refused silent truncation of large question context.
+- Shared the existing request queue, usage accounting, cancellation, pause behavior, and three-file Codex runtime.
+- Added conservative saved anchors for partial selections and session-only question-answer recall.
+- Added twelve automated checks for scope boundaries, stale anchors, context limits, request serialization, the question dialog, cancellation during connection, and editor actions.
+
 # 1.0.4
 
 - Added note-ready feedback as 2–5 bullet points or a short explanatory paragraph, chosen to fit the material.

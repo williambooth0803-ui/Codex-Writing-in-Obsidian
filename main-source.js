@@ -1,5 +1,5 @@
 'use strict';
-const { Plugin, PluginSettingTab, Setting, Notice, MarkdownView } = require('obsidian');
+const { Plugin, PluginSettingTab, Setting, Notice, MarkdownView, Modal } = require('obsidian');
 const { StateField, StateEffect } = require('@codemirror/state');
 const { EditorView, Decoration, hoverTooltip, showTooltip, closeHoverTooltips, keymap } = require('@codemirror/view');
 const path = require('node:path');
@@ -29,7 +29,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.loop.on('changed',()=>{this.refreshEditors();this.updateStatus();});
     this.loop.on('started',()=>this.updateStatus());
     this.loop.on('manual-finished',run=>{
-      if(this.unloaded)return;
+      if(this.unloaded||run.scope==='question')return;
       new Notice(run.status==='failed'?`AI assistant stopped: ${run.error}`:
         run.status==='cancelled'?'AI assistant stopped.':
           `AI assistant reviewed ${run.completed-run.skipped} of ${run.total} passages and added ${run.comments} comments.${run.skipped?' Changed passages were skipped.':''}`);
@@ -46,6 +46,11 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.registerEvent(this.app.workspace.on('editor-change',(editor,view)=>this.capture(editor,view)));
     this.registerEvent(this.app.workspace.on('file-open',()=>this.baselineOpenViews()));
     this.registerEvent(this.app.workspace.on('layout-change',()=>this.installNoteActions()));
+    this.registerEvent(this.app.workspace.on('editor-menu',(menu,editor,info)=>{
+      const view=info?.editor?info:this.app.workspace.getActiveViewOfType(MarkdownView);
+      if(editor.getSelection().trim())menu.addItem(item=>item.setTitle('Review selection with AI').setIcon('sparkles').onClick(()=>this.runCurrentNote(view,{selectionOnly:true})));
+      menu.addItem(item=>item.setTitle('Ask AI about this note').setIcon('message-circle').onClick(()=>this.openQuestion(view)));
+    }));
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{
       this.loop.renameFile(oldPath,file.path);this.baselineOpenViews();
     }));
@@ -53,7 +58,9 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.app.workspace.onLayoutReady(()=>this.baselineOpenViews());
     this.addCommand({id:'toggle-automatic-review',name:'Pause/resume automatic reviews',callback:()=>this.togglePaused()});
     this.addCommand({id:'run-ai-assistant',name:'Run AI assistant on the whole note',callback:()=>this.runCurrentNote()});
-    this.addCommand({id:'stop-ai-assistant',name:'Stop the whole-note AI assistant',callback:()=>this.loop.cancelNoteReview()});
+    this.addCommand({id:'review-selection',name:'Review selected text with AI',editorCallback:(_,view)=>this.runCurrentNote(view,{selectionOnly:true})});
+    this.addCommand({id:'ask-about-note',name:'Ask AI about this note',callback:()=>this.openQuestion()});
+    this.addCommand({id:'stop-ai-assistant',name:'Stop the AI assistant',callback:()=>this.loop.cancelNoteReview()});
     this.addCommand({id:'show-feedback-at-cursor',name:'Show AI feedback at cursor',editorCallback:(_,view)=>{
       const cm=view.editor?.cm;if(!cm)return;
       const value=cm.state.field(this.feedbackField,false),pos=cm.state.selection.main.head;
@@ -89,31 +96,45 @@ module.exports = class AutomaticParagraphReview extends Plugin {
   installNoteActions(){
     if(this.unloaded)return;
     const views=this.app.workspace.getLeavesOfType('markdown').map(leaf=>leaf.view);
-    for(const [view,action]of this.noteActions)if(!views.includes(view)){action.button.remove();this.noteActions.delete(view);}
+    for(const [view,action]of this.noteActions)if(!views.includes(view)){action.button.remove();action.ask?.remove();this.noteActions.delete(view);}
     for(const view of views){
       if(this.noteActions.has(view)||!view.addAction)continue;
-      const button=view.addAction('sparkles','Run AI assistant',()=>{if(button.getAttribute('aria-disabled')!=='true')this.runCurrentNote(view);});
+      const button=view.addAction('sparkles','Run AI assistant',()=>{if(button.getAttribute('aria-disabled')!=='true')this.runCurrentNote(view,{useSelection:true});});
       button.classList.add('automatic-ai-run-button');button.setAttribute('role','button');button.setAttribute('tabindex','0');
       const label=button.ownerDocument.createElement('span');label.className='automatic-ai-run-label';button.appendChild(label);
-      this.registerDomEvent(button,'keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(button.getAttribute('aria-disabled')!=='true')this.runCurrentNote(view);}});
-      this.noteActions.set(view,{button,label});
+      this.registerDomEvent(button,'keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(button.getAttribute('aria-disabled')!=='true')this.runCurrentNote(view,{useSelection:true});}});
+      const ask=view.addAction('message-circle','Ask about this note',()=>{if(ask.getAttribute('aria-disabled')!=='true')this.openQuestion(view);});
+      ask.setAttribute('role','button');ask.setAttribute('tabindex','0');ask.setAttribute('aria-label','Ask about this note');
+      this.registerDomEvent(ask,'keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(ask.getAttribute('aria-disabled')!=='true')this.openQuestion(view);}});
+      this.noteActions.set(view,{button,label,ask});
     }
     this.updateRunButtons();
   }
   updateRunButtons(){
     if(!this.noteActions)return;
     const run=this.loop.manualRun,active=this.loop.manualRunning();
-    for(const [view,{button,label}]of this.noteActions){
+    for(const [view,{button,label,ask}]of this.noteActions){
       const same=active&&run.file===view.file?.path;
       const disabled=!!this.launchingManual||!view.file||(active&&(!same||run.cancelled));
       const text=this.launchingManual?'Preparing AI assistant…':active?
-        run.cancelled?'Stopping AI assistant…':same?`Stop AI assistant (${run.completed}/${run.total})`:'AI assistant running…':'Run AI assistant';
+        run.cancelled?'Stopping AI assistant…':same?`Stop AI assistant (${run.completed}/${run.total})`:'AI assistant running…':this.selectionFor(view)?'Review selection':'Run AI assistant';
       label.textContent=text;button.setAttribute('aria-label',text);button.setAttribute('aria-disabled',String(disabled));
-      button.setAttribute('title',same?'Stop the current whole-note review.':'Review the whole note with Codex. Uses account allowance; automatic-review settings stay unchanged.');
+      button.setAttribute('title',same?'Stop the current AI request.':this.selectionFor(view)?'Review only the highlighted text with Codex.':'Review the whole note with Codex. Uses account allowance; automatic-review settings stay unchanged.');
       button.classList.toggle('automatic-ai-run-disabled',disabled);
+      if(ask){ask.setAttribute('aria-disabled',String(active||!!this.launchingManual||!view.file));ask.classList.toggle('automatic-ai-run-disabled',active||!!this.launchingManual||!view.file);}
     }
   }
-  async runCurrentNote(view=this.app.workspace.getActiveViewOfType(MarkdownView)){
+  selectionFor(view){
+    const editor=view?.editor;if(!editor?.getSelection?.().length)return null;
+    return {from:editor.posToOffset(editor.getCursor('from')),to:editor.posToOffset(editor.getCursor('to'))};
+  }
+  openQuestion(view=this.app.workspace.getActiveViewOfType(MarkdownView)){
+    if(!view?.file||!view.editor){new Notice('Open a note in editing mode first.');return;}
+    if(this.loop.manualRunning()){new Notice('Wait for the current AI request or stop it first.');return;}
+    if(this.questionModal){this.questionModal.close();}
+    this.questionModal=new NoteQuestionModal(this,view);this.questionModal.open();
+  }
+  async runCurrentNote(view=this.app.workspace.getActiveViewOfType(MarkdownView),{useSelection=false,selectionOnly=false}={}){
     if(this.unloaded||this.launchingManual)return;
     if(this.loop.manualRunning()){
       if(view?.file?.path===this.loop.manualRun.file)this.loop.cancelNoteReview();
@@ -121,15 +142,19 @@ module.exports = class AutomaticParagraphReview extends Plugin {
       return;
     }
     const file=view?.file;if(!file){new Notice('Open a Markdown note first.');return;}
+    const selection=(useSelection||selectionOnly)?this.selectionFor(view):null;
+    if(selectionOnly&&!selection){new Notice('Highlight the portion of the note you want to review.');return;}
+    const snapshot=view.editor?.getValue();
     this.launchingManual=true;this.updateRunButtons();
     try{
       const connection=this.connection?.ready?this.connection:await this.verifyConnection();
       if(this.unloaded)return;
       if(!connection.ready){new Notice(connection.message);return;}
-      const text=view.file===file&&view.editor?view.editor.getValue():await this.app.vault.cachedRead(file);
+      const text=snapshot??await this.app.vault.cachedRead(file);
+      if(view.file!==file||(snapshot!==undefined&&view.editor.getValue()!==snapshot)){new Notice('The note changed while connecting. Run the assistant again.');return;}
       if(this.unloaded)return;
       this.launchingManual=false;
-      await this.loop.reviewNote(file.path,text,view.file===file&&view.editor?view.editor.posToOffset(view.editor.getCursor()):-1);
+      await this.loop.reviewNote(file.path,text,view.file===file&&view.editor?view.editor.posToOffset(view.editor.getCursor()):-1,{selection});
     }catch(error){if(!this.unloaded)new Notice(error.message);}
     finally{this.launchingManual=false;if(!this.unloaded)this.updateRunButtons();}
   }
@@ -246,10 +271,14 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     if(!native?.file||native.file.path!==result?.file||!result.comments.some(c=>c.id===range.comment.id)){
       new Notice('This feedback is no longer available. Reopen the passage.');return;
     }
+    this.insertAddition(cm,result,result.comments.find(c=>c.id===range.comment.id),range.from,index);
+  }
+  insertAddition(cm,result,comment,quoteFrom,index=null){
+    const native=this.findView(cm);
+    if(!native?.file||native.file.path!==result.file){new Notice('Open the original note before adding this answer.');return false;}
     if(cm.state.readOnly){new Notice('This note is read-only.');return;}
     try{
-      const comment=result.comments.find(c=>c.id===range.comment.id);
-      const plan=this.core.planNoteAddition(cm.state.doc.toString(),result,comment,range.from,this.settings,index);
+      const plan=this.core.planNoteAddition(cm.state.doc.toString(),result,comment,quoteFrom,this.settings,index);
       if(plan.alreadyAdded){new Notice('This feedback is already in the note.');return;}
       this.insertingFeedback=true;
       try{
@@ -257,12 +286,13 @@ module.exports = class AutomaticParagraphReview extends Plugin {
         // Baseline additions before editor-change can queue another AI request for them.
         this.loop.update(native.file.path,cm.state.doc.toString(),cm.state.selection.main.head,{baseline:true,explicit:true});
       }finally{this.insertingFeedback=false;}
-      cm.focus();
+      cm.focus();return true;
     }catch(error){new Notice(error.message);}
   }
   findView(cm){return this.app.workspace.getLeavesOfType('markdown').map(leaf=>leaf.view).find(view=>view.editor?.cm===cm);}
   capture(editor,view){
     if(this.unloaded||this.insertingFeedback||!view?.file)return;
+    this.updateRunButtons();
     this.loop.update(view.file.path,editor.getValue(),editor.posToOffset(editor.getCursor()));
   }
   baselineOpenViews(){
@@ -297,7 +327,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
       this.loop.lastError?'AI feedback: connection needs attention':count?`AI feedback: ${count} queued`:'AI feedback: ready';
     if(this.connection?.ready&&!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
       message=`AI feedback: ${(this.loop.metrics.lastTotalMs/1000).toFixed(1)}s last review`;
-    if(this.loop.manualRunning())message=`AI assistant: ${this.loop.manualRun.completed}/${this.loop.manualRun.total} passages${this.loop.manualRun.cancelled?' · stopping…':''}`;
+    if(this.loop.manualRunning())message=this.loop.manualRun.scope==='question'?`AI answer: ${this.loop.manualRun.status==='waiting'?'waiting…':this.loop.manualRun.cancelled?'stopping…':'thinking…'}`:`AI assistant: ${this.loop.manualRun.completed}/${this.loop.manualRun.total} passages${this.loop.manualRun.cancelled?' · stopping…':''}`;
     this.status.setText(message);
     this.status.setAttribute('aria-label',message+'. Click to pause or resume.');
   }
@@ -329,10 +359,104 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.unloaded=true;clearTimeout(this.saveTimer);
     for(const timer of this.refreshTimers.values())clearTimeout(timer);
     for(const timer of this.captureTimers.values())clearTimeout(timer);
-    for(const {button}of this.noteActions.values())button.remove();this.noteActions.clear();
+    this.questionModal?.close();
+    for(const {button,ask}of this.noteActions.values()){button.remove();ask?.remove();}this.noteActions.clear();
     this.loop.stop();await this.saveNow();
   }
 };
+
+class NoteQuestionModal extends Modal {
+  constructor(plugin,view){
+    super(plugin.app);this.plugin=plugin;this.view=view;this.file=view.file;
+    this.snapshot=view.editor.getValue();this.selection=plugin.selectionFor(view);this.closed=false;
+  }
+  element(tag,text,parent=this.contentEl){
+    const el=this.contentEl.ownerDocument.createElement(tag);if(text)el.textContent=text;parent.appendChild(el);return el;
+  }
+  onOpen(){
+    this.modalEl?.classList.add('automatic-ai-question-modal');this.contentEl.replaceChildren();
+    this.element('h2','Ask AI about this note');
+    const contextLabel=this.element('label','Context');this.scope=this.element('select','',contextLabel);
+    if(this.selection){const option=this.element('option','Selected text',this.scope);option.value='selection';}
+    const whole=this.element('option','Whole note',this.scope);whole.value='note';this.scope.value=this.selection?'selection':'note';
+    this.contextInfo=this.element('p','');this.contextInfo.className='setting-item-description';
+    this.scope.addEventListener('change',()=>{this.answerEl.replaceChildren();this.describeContext();});
+    const label=this.element('label','Your question');this.input=this.element('textarea','',label);
+    this.input.rows=4;this.input.maxLength=2000;this.input.placeholder='For example: How does this connect to the earlier discussion of sonata form?';
+    this.input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();this.submit();}});
+    this.ask=this.element('button','Ask AI');this.ask.addEventListener('click',()=>this.submit());
+    this.status=this.element('p','');this.status.setAttribute('role','status');
+    this.answerEl=this.element('div','');this.answerEl.className='automatic-ai-question-answer';this.answerEl.setAttribute('aria-live','polite');
+    this.element('p','Answers use the chosen note context and general knowledge, without web research. Add inserts below the last passage in that context. Closing this dialog stops a pending question. Add an answer to keep it across app restarts.').className='setting-item-description';
+    this.describeContext();
+    const saved=this.plugin.questionCache?.get(this.file.path);
+    if(saved&&saved.snapshot===this.snapshot&&JSON.stringify(saved.selection)===JSON.stringify(this.currentSelection())){
+      this.input.value=saved.question;this.result=saved.run;this.renderAnswer();
+    }
+    this.input.focus();
+  }
+  currentSelection(){return this.scope.value==='selection'?this.selection:null;}
+  describeContext(){
+    try{const context=this.plugin.core.questionContext(this.snapshot,this.currentSelection(),this.plugin.settings);
+      this.contextInfo.textContent=`${this.scope.value==='selection'?'Only selected text':'Current note'} · ${context.text.length.toLocaleString()} characters. Frontmatter, fenced code, and hidden comments are omitted. Uses Codex allowance.`;
+    }catch(error){this.contextInfo.textContent=error.message;}
+  }
+  async submit(){
+    const plugin=this.plugin;
+    if(this.pending){this.cancelRequested=true;this.status.textContent='Stopping answer…';if(this.activeRun&&this.activeRun===plugin.loop.manualRun)plugin.loop.cancelNoteReview();return;}
+    const question=this.input.value.trim();if(!question){this.status.textContent='Enter a question first.';this.input.focus();return;}
+    this.pending=true;this.cancelRequested=false;this.ask.textContent='Stop answer';this.input.disabled=true;this.scope.disabled=true;this.answerEl.replaceChildren();this.status.textContent='Connecting…';
+    try{
+      const connection=plugin.connection?.ready?plugin.connection:await plugin.verifyConnection();
+      if(this.closed||plugin.unloaded)return;
+      if(this.cancelRequested){this.status.textContent='Answer stopped.';return;}
+      if(!connection.ready)throw new Error(connection.message);
+      this.status.textContent=plugin.loop.busy?'Waiting for the current request…':'Thinking…';
+      const prior=plugin.loop.manualRun,promise=plugin.loop.reviewNote(this.file.path,this.snapshot,-1,{selection:this.currentSelection(),question});
+      this.activeRun=plugin.loop.manualRun!==prior?plugin.loop.manualRun:null;
+      const run=await promise;if(this.closed||plugin.unloaded)return;
+      if(run.status==='failed')throw new Error(run.error);
+      if(run.status==='cancelled'){this.status.textContent='Answer stopped.';return;}
+      this.result=run;this.status.textContent='Answer based on the context captured when this dialog opened.';
+      if(!plugin.questionCache)plugin.questionCache=new Map();
+      plugin.questionCache.set(this.file.path,{snapshot:this.snapshot,selection:this.currentSelection(),question,run});
+      while(plugin.questionCache.size>10)plugin.questionCache.delete(plugin.questionCache.keys().next().value);
+      this.renderAnswer();
+    }catch(error){if(!this.closed)this.status.textContent=error.message;}
+    finally{this.pending=false;this.activeRun=null;if(!this.closed){this.ask.textContent='Ask AI';this.input.disabled=false;this.scope.disabled=false;}}
+  }
+  addition(index=null){
+    const cm=this.view.editor?.cm;if(!cm||this.view.file!==this.file)throw new Error('Open the original note before adding this answer.');
+    const comment={...this.result.answer,quote:this.result.anchor.text};
+    const result={file:this.file.path,manual:true,paragraph:this.result.anchor,comments:[comment]};
+    const ranges=this.plugin.core.feedbackRanges(cm.state.doc.toString(),[result],this.plugin.settings);
+    const range=ranges.length===1?ranges[0]:cm.state.doc.toString()===this.snapshot?ranges.find(r=>r.from===this.result.anchor.from):null;
+    if(!range)throw new Error('The source passage changed. Ask again before adding the answer.');
+    const plan=this.plugin.core.planNoteAddition(cm.state.doc.toString(),result,comment,range.from,this.plugin.settings,index);
+    return {cm,result,comment,range,plan};
+  }
+  addButton(parent,text,index=null){
+    const button=this.element('button',text,parent);button.className='automatic-ai-add';
+    try{const data=this.addition(index);button.disabled=data.cm.state.readOnly||data.plan.alreadyAdded;if(data.plan.alreadyAdded)button.textContent='Already in note';}
+    catch(error){button.disabled=true;button.title=error.message;}
+    button.addEventListener('click',()=>{
+      try{const data=this.addition(index);if(this.plugin.insertAddition(data.cm,data.result,data.comment,data.range.from,index))this.renderAnswer();}
+      catch(error){new Notice(error.message);}
+    });
+  }
+  renderAnswer(){
+    this.answerEl.replaceChildren();const answer=this.result.answer;
+    if(answer.format==='bullets'){
+      const list=this.element('ul','',this.answerEl);list.className='automatic-ai-bullets';
+      answer.bullets.forEach((text,index)=>{const li=this.element('li','',list);this.element('span',text,li);this.addButton(li,'Add',index);});
+    }else this.element('p',answer.comment,this.answerEl);
+    this.addButton(this.answerEl,answer.format==='bullets'?'Add all to note':'Add answer to note');
+  }
+  onClose(){
+    this.closed=true;if(this.activeRun&&this.activeRun===this.plugin.loop.manualRun)this.plugin.loop.cancelNoteReview();
+    if(this.plugin.questionModal===this)this.plugin.questionModal=null;
+  }
+}
 
 class ReviewSettings extends PluginSettingTab {
   display(){
@@ -340,6 +464,7 @@ class ReviewSettings extends PluginSettingTab {
     this.containerEl.empty();
     this.containerEl.createEl('h2',{text:'Automatic AI feedback'});
     new Setting(this.containerEl).setName('Codex connection').setDesc(plugin.connection?.message||'Check the connection before enabling reviews.').addButton(button=>button.setButtonText('Check connection').onClick(async()=>{button.setDisabled(true);await plugin.verifyConnection();this.display();}));
+    this.containerEl.createEl('p',{text:'Highlight text to review only that selection. Use the speech-bubble button or Ask AI about this note command for a specific question, with selected text or the whole note as context.'});
     this.containerEl.createEl('p',{text:'Use Run AI assistant at the top of a note to review its existing text once, including headings and short bullets. This sends the note to Codex and uses account allowance. It also works while automatic reviews are paused.'});
     if(!plugin.settings.consentGranted)new Setting(this.containerEl).setName('Enable automatic feedback').setDesc('Completed passages and nearby prose from the same note will be sent to Codex using your existing sign-in. Account usage limits apply. Your note text will not be changed.').addButton(button=>button.setButtonText('Connect and enable').setCta().onClick(async()=>{button.setDisabled(true);await plugin.connectAndEnable();this.display();}));
     this.containerEl.createEl('p',{text:'Write normally. Feedback appears as a subtle underline. Hover, click, or move your text cursor into the underlined passage to read it. Your Markdown changes only when you choose Add to note.'});

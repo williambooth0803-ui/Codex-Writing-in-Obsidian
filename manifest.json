@@ -1,7 +1,7 @@
 {
   "id": "automatic-paragraph-review",
   "name": "Automatic Paragraph Review",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "minAppVersion": "1.13.7",
   "description": "Automatic context, explanations, and examples as hover annotations to deepen your understanding, using your local Codex sign-in.",
   "author": "williambooth0803-ui",

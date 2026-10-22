@@ -6,7 +6,7 @@ Automatic study feedback inside desktop Obsidian, using your existing local Code
 
 The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback uses 2–5 concise note-style bullets when several distinct points fit, or a short paragraph when a connected explanation is clearer. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
 
-**Release: 1.0.4.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
+**Release: 1.0.5.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
@@ -16,7 +16,8 @@ The default focus is **context and deeper understanding**. Hover comments add us
 - Explanatory context and examples as 2–5 note-style bullets or a short paragraph; no study questions.
 - **Add to note** for a paragraph, **Add** for an individual bullet, or **Add all to note** for the group. Additions go below the source passage and support ordinary Undo.
 - Earlier saved question-style comments are hidden while their history and dismissals remain intact.
-- **Run AI assistant** button at the top of each note for a fresh whole-note review on demand.
+- **Run AI assistant** button for the whole note, changing to **Review selection** when text is highlighted.
+- **Ask about this note** speech-bubble button for a specific question, with selected text or whole-note context.
 - Progress and a Stop button; whole-note review also works while automatic reviews are paused.
 - Automatic review of new or changed prose and list items while you continue writing.
 - Review of the current passage after its own idle period, without requiring a blank line.
@@ -28,6 +29,18 @@ The default focus is **context and deeper understanding**. Hover comments add us
 - Pause/resume from the status bar, settings, or command palette.
 - Reported token totals and timing, plus timeouts and bounded retries for connection failures.
 - AI-generated text is inserted only when you choose an Add button.
+
+## Review a selection or ask a question
+
+Highlight text in the editor. The main button changes to **Review selection** and reviews only the highlighted portion, even when the selection starts or ends within a paragraph. You can also right-click and choose **Review selection with AI**, or run **Automatic Paragraph Review: Review selected text with AI** from the command palette. Selection-review requests send only eligible selected text and preceding selected passages as context. They do not automatically include the rest of the note. Automatic background reviews continue according to your existing settings.
+
+Click the speech-bubble **Ask about this note** action, right-click **Ask AI about this note**, or use the matching command. Enter a specific question. The dialog defaults to **Selected text** when a selection exists; otherwise it uses **Whole note**. You can choose the scope in the dialog. It shows the amount of context before you ask. Whole-note question context is limited to 60,000 characters; larger notes require a smaller selection rather than silent truncation. Frontmatter, fenced code, and hidden comments are omitted.
+
+Answers appear in the dialog as a paragraph or 2–5 bullets, with the existing Add controls. Add inserts below the last passage in the chosen context; it preserves source text and supports normal Undo. If the source changed, ask again before adding the answer. Closing the dialog stops its pending request. Up to ten latest answers, one per note, are kept in memory for the current plugin session when the captured context still matches; questions and answers are not saved to plugin history. Add an answer to your note to keep it across app restarts.
+
+Questions use the captured note context and established general knowledge, without web research or invented source citations. Insufficient context and uncertainty should be identified in the answer. This is model-generated explanation, not verified research. Questions use Codex allowance and share the same one-request-at-a-time queue. They work while automatic reviews are paused and leave automatic settings unchanged. The **Run AI assistant on the whole note** command always reviews the whole note, even with a selection active.
+
+Selection feedback is tied to its unchanged source paragraph. It can follow that paragraph when other text moves, but changing the source paragraph removes the old feedback. Ambiguous identical paragraphs are handled conservatively after edits.
 
 ## Add useful feedback to your notes
 
@@ -107,6 +120,8 @@ Runtime files are already built. Source and tests are included for inspection:
 - `whole-note-benchmark.js`: Optional live check of explicit whole-note review while automatic reviews stay paused.
 - `addable-feedback-benchmark.js`: Optional live schema check of both bullet and paragraph feedback.
 - `tests/note-additions.test.js`: Source placement, list indentation, stale-source checks, and duplicate prevention.
+- `tests/selection-question.test.js`: Selection boundaries, privacy of request scope, question queuing, cancellation, usage, and context limits.
+- `selection-question-benchmark.js`: Optional live checks of a selected passage and a specific question using synthetic note text.
 
 For development, use Node.js 24.15 or later and pnpm 11.25.0:
 

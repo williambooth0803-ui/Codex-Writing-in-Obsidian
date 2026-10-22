@@ -40,3 +40,10 @@
 .automatic-ai-add-bullet { margin-left: 8px; font-size: 0.85em; padding: 2px 7px; height: auto; }
 .automatic-ai-actions { margin: 10px 0; }
 .automatic-ai-add { font-size: 0.95em; height: auto; padding: 5px 10px; }
+
+.automatic-ai-question-modal { width: min(680px, 90vw); }
+.automatic-ai-question-modal label { display: block; margin: 12px 0; }
+.automatic-ai-question-modal textarea { display: block; width: 100%; margin-top: 6px; }
+.automatic-ai-question-modal select { margin-left: 10px; }
+.automatic-ai-question-answer { line-height: 1.6; max-height: 45vh; overflow-y: auto; }
+.automatic-ai-question-answer .automatic-ai-add { margin: 6px 0 6px 8px; }

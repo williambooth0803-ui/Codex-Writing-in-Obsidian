@@ -87,3 +87,12 @@ All 35 automated checks pass. New checks exercise valid 2–5-bullet output and 
 One real Codex request returned a three-bullet comparison and an explanatory paragraph using the new embedded schema in 11.73 seconds. The synthetic validation requested one of each format to exercise both schema branches; ordinary reviews choose a format based on the material. Exact requests and outputs are in `addable-feedback-benchmark-results-1.0.4.json`. Clicking Add uses this stored content without an additional AI request.
 
 The user chose to leave this update ready for the next Obsidian restart while writing class notes. Runtime files are installed without reloading the active plugin. Saved settings/history and the current note are not changed. Native insertion controls will become available after restart; real CodeMirror tests above validate their implementation.
+
+
+## Release 1.0.5 selection and question checks
+
+All 47 automated checks pass. Twelve new checks cover exact partial selection extraction, exclusion of unselected/protected text from explicit selection requests, selected-only batch context, saved anchors, source edits and moves, duplicate paragraphs, insertion below the full source paragraph, question context limits, shared request serialization and usage, preservation of newer tracked text, cancellation/failure, dedicated answer-schema validation, selection-aware header actions, and the question dialog with Add controls using real CodeMirror. Closing the modal cancels its pending request; cancelling during connection setup prevents the AI call.
+
+Two real Codex requests used only synthetic note text: an explicit selection review completed in 8.82 seconds and a specific question about tonal resolution completed in 7.80 seconds. Automatic reviews remained paused. Full inputs, outputs, selected boundaries, usage, and timings are in `selection-question-benchmark-results-1.0.5.json`.
+
+The user previously requested staged updates for the next Obsidian restart while taking notes. This release is installed without reloading the active plugin, changing saved data, or interacting with the current note. Native selection/menu/modal behavior has not been live-tested; real CodeMirror tests and the live Codex engine checks provide the validation above.
