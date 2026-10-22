@@ -78,3 +78,12 @@ All 27 automated checks pass. The eight added checks cover whole-note extraction
 One real Codex request reviewed three synthetic passages through `ReviewEngine.reviewNote`: a sonata-form heading, a short exposition bullet, and an existing recapitulation paragraph. All three received explanatory comments in 9.90 seconds total. Automatic reviews remained paused. Exact inputs, outputs, timing, and reported usage are in `whole-note-benchmark-results-1.0.3.json`. Run `node whole-note-benchmark.js` to repeat this optional live test; it consumes Codex allowance.
 
 The three-file release was installed in the authorized iCloud vault and enabled. Obsidian displayed version 1.0.3 in Community plugins. The native UI connection timed out after closing its separate Settings window, as it had during an earlier release check; a live button screenshot is pending. The button action and progress transitions are covered by the editor integration test; the real Codex check above exercises the actual whole-note engine.
+
+
+## Release 1.0.4 addable-feedback checks
+
+All 35 automated checks pass. New checks exercise valid 2–5-bullet output and legacy paragraphs, reject malformed/question-style bullets, and verify exact source placement, CRLF and Unicode, Markdown escaping, nested/ordered/task lists, long source blocks, duplicated manual passages, partial additions in source order, duplicate prevention, stale/dismissed feedback, read-only notes, and real CodeMirror Add controls. Added AI text is baselined and does not queue its own automatic review. Insertions use a single editor transaction per click, allowing normal Obsidian history to undo them. Native Undo is not live-tested for this release.
+
+One real Codex request returned a three-bullet comparison and an explanatory paragraph using the new embedded schema in 11.73 seconds. The synthetic validation requested one of each format to exercise both schema branches; ordinary reviews choose a format based on the material. Exact requests and outputs are in `addable-feedback-benchmark-results-1.0.4.json`. Clicking Add uses this stored content without an additional AI request.
+
+The user chose to leave this update ready for the next Obsidian restart while writing class notes. Runtime files are installed without reloading the active plugin. Saved settings/history and the current note are not changed. Native insertion controls will become available after restart; real CodeMirror tests above validate their implementation.

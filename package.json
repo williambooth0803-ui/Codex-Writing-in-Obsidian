@@ -1,6 +1,6 @@
 {
   "name": "automatic-paragraph-review",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Automatic study feedback for desktop Obsidian, with hover annotations.",
   "scripts": {

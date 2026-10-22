@@ -73,3 +73,45 @@ test('note-header Run AI assistant button reviews an existing note while automat
     assert.equal(plugin.loop.feedback.size,3);
   }finally{plugin.loop.stop();parent.remove();}
 });
+
+test('addable bullet cards insert one or all remaining points atomically, keep source feedback and skip automatic rereview',()=>{
+ const {plugin,view,parent,text,result}=setup();const captures=[];
+ try{
+  result.file='Test.md';result.comments[0]={...result.comments[0],format:'bullets',comment:'',bullets:['Motivation can influence both attendance and scores.','A controlled comparison isolates the effect of attendance.']};
+  plugin.loop=new core.ReviewEngine({reviewBatch(){throw new Error('Insertion must not start AI.');}},{enabled:true});
+  plugin.loop.update(result.file,text,0,{baseline:true});plugin.loop.feedback.set(result.key,result);
+  plugin.findView=()=>({file:{path:result.file}});
+  const update=plugin.loop.update.bind(plugin.loop);plugin.loop.update=(...args)=>{captures.push(args[3]);return update(...args);};
+  view.dispatch({effects:plugin.refreshEffect.of([result])});
+  let range=view.state.field(plugin.feedbackField).ranges[0],card=plugin.createPopover(view,range);
+  assert.equal(card.querySelectorAll('.automatic-ai-bullet').length,2);assert.equal(card.querySelector('.automatic-ai-body p'),null);
+  const before=view.state;card.querySelector('.automatic-ai-add-bullet').click();const one=view.state.doc.toString();
+  assert.ok(one.includes('- Motivation can influence'));assert.ok(!one.includes('- A controlled comparison'));
+  assert.equal(plugin.loop.pending.size,0);assert.equal(captures[0].baseline,true);assert.equal(view.state.field(plugin.feedbackField).ranges.length,1);
+  range=view.state.field(plugin.feedbackField).ranges[0];card=plugin.createPopover(view,range);
+  assert.equal(card.querySelector('.automatic-ai-add-bullet').disabled,true);card.querySelector('.automatic-ai-add').click();
+  const after=view.state.doc.toString();assert.equal(after.split('- Motivation can influence').length,2);assert.ok(after.includes('- Motivation can influence both attendance and scores.\n- A controlled comparison'));
+  card=plugin.createPopover(view,view.state.field(plugin.feedbackField).ranges[0]);assert.equal(card.querySelector('.automatic-ai-add').disabled,true);
+  // Both actions are single editor transactions. Reverting their changes leaves the original source intact.
+  view.dispatch({changes:{from:0,to:view.state.doc.length,insert:before.doc.toString()}});assert.equal(view.state.doc.toString(),text);
+  card=plugin.createPopover(view,view.state.field(plugin.feedbackField).ranges[0]);assert.equal(card.querySelector('.automatic-ai-add').disabled,false);
+ }finally{plugin.loop.stop();view.destroy();parent.remove();}
+});
+
+test('legacy paragraph feedback can be added below the source, while dismissed or changed feedback cannot be inserted',()=>{
+ const {plugin,view,parent,text,result}=setup();try{
+  result.file='Test.md';plugin.loop=new core.ReviewEngine({},{enabled:false});plugin.loop.update(result.file,text,0,{baseline:true});plugin.loop.feedback.set(result.key,result);plugin.findView=()=>({file:{path:result.file}});
+  const range=view.state.field(plugin.feedbackField).ranges[0],card=plugin.createPopover(view,range);card.querySelector('.automatic-ai-add').click();
+  assert.ok(view.state.doc.toString().includes('\n\n'+result.comments[0].comment+'\n'));assert.ok(view.state.doc.toString().startsWith(result.paragraph.text));
+  const current=view.state.doc.toString();plugin.loop.feedback.clear();plugin.addFeedbackToNote(view,range);assert.equal(view.state.doc.toString(),current);
+ }finally{plugin.loop.stop();view.destroy();parent.remove();}
+});
+
+test('read-only notes show disabled Add buttons and reject note changes',()=>{
+ const {plugin,view,parent,text,result}=setup();try{
+  result.file='Test.md';plugin.loop=new core.ReviewEngine({},{enabled:false});plugin.loop.feedback.set(result.key,result);plugin.findView=()=>({file:{path:result.file}});
+  view.dispatch({effects:CMState.StateEffect.appendConfig.of(CMState.EditorState.readOnly.of(true))});
+  const range=view.state.field(plugin.feedbackField).ranges[0],card=plugin.createPopover(view,range);assert.equal(card.querySelector('.automatic-ai-add').disabled,true);
+  plugin.addFeedbackToNote(view,range);assert.equal(view.state.doc.toString(),text);
+ }finally{plugin.loop.stop();view.destroy();parent.remove();}
+});

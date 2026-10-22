@@ -1,12 +1,11 @@
-Version 1.0.3 adds **Run AI assistant** at the top of each note. Click it to review the whole current note on demand, including existing text, headings, short bullets, blockquotes, and tables. Feedback appears in the same hover cards as each batch completes.
+Version 1.0.4 makes hover feedback easy to add to your notes. The AI now chooses **2–5 concise bullet points** when several distinct ideas fit, or a **short paragraph** when a connected explanation works better.
 
-- Shows progress and a **Stop AI assistant** button during a run.
-- Works while automatic reviews are paused and leaves automatic settings unchanged.
-- Explicitly reviews the current note even when automatic folder or filename restrictions exclude it.
-- Splits long passages, shares feedback across identical passages, and skips passages changed during a request.
-- Runs one request at a time, waiting for any current automatic request before starting. Explicit runs bypass automatic idle and interval delays.
-- Preserves completed feedback if the run is stopped or fails.
-- All 27 automated tests pass, including real CodeMirror integration and the note-header action.
-- A live whole-note test reviewed three synthetic passages in 9.90 seconds with automatic reviews paused. Timing varies by note, model, and service load.
+- Click **Add** beside one bullet, **Add all to note** for a group, or **Add to note** for a paragraph.
+- Additions appear below the reviewed passage in real Markdown. Existing source text is preserved; normal Obsidian Undo works.
+- List-item additions use nested indentation. Duplicate additions are disabled; undoing or removing the inserted text makes it addable again.
+- Stale/dismissed feedback and read-only notes cannot be changed through Add controls.
+- Adding saved feedback makes no AI request and does not automatically send the inserted text back for review.
+- Older saved paragraphs remain addable. Use Run AI assistant to generate fresh feedback in the new formats.
+- All 35 automated checks pass, including real CodeMirror button actions, Markdown placement, legacy feedback, and output validation.
 
-The three runtime files remain `main.js`, `manifest.json`, and `styles.css`. The manual-install ZIP and SHA-256 checksums are attached. Requires desktop Obsidian 1.13.7 or later and an installed, signed-in Codex CLI. Reviews send passage text and nearby note context to Codex and use account allowance. The plugin does not rewrite Markdown or perform sourced fact-checking.
+The three runtime files remain `main.js`, `manifest.json`, and `styles.css`, with the manual ZIP and SHA-256 checksums attached. Requires desktop Obsidian 1.13.7+ and a separately installed, signed-in Codex CLI. Reviews use Codex allowance. Feedback remains model-generated; uncertain factual additions should be verified.

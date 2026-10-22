@@ -1,0 +1,82 @@
+{
+  "version": "1.0.4",
+  "testedAt": "2026-10-22T14:50:28.710Z",
+  "targets": [
+    {
+      "id": "comparison",
+      "text": "Major-key and minor-key sonata expositions often establish different contrasting tonal areas."
+    },
+    {
+      "id": "mechanism",
+      "text": "The recapitulation resolves the tonal contrast introduced by the exposition."
+    }
+  ],
+  "reviews": [
+    {
+      "id": "comparison",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "different contrasting tonal areas",
+          "comment": "",
+          "format": "bullets",
+          "bullets": [
+            "In a major-key exposition, the contrasting theme commonly arrives in the dominant key, such as G major in a C-major sonata.",
+            "In a minor-key exposition, the contrasting theme often arrives in the relative major, such as E-flat major in a C-minor sonata, though the minor dominant is another possibility.",
+            "These are Classical-era conventions rather than fixed rules; composers can choose other tonal destinations for expressive or structural reasons."
+          ],
+          "id": "f61dbf0ed4596a12aaab0d07"
+        }
+      ]
+    },
+    {
+      "id": "mechanism",
+      "comments": [
+        {
+          "category": "context",
+          "quote": "resolves the tonal contrast",
+          "comment": "The recapitulation typically reworks the transition so that the contrasting theme returns in the tonic rather than the exposition’s secondary key. For example, a theme first heard in G major in a C-major sonata commonly returns in C major. The resolution concerns tonal stability, so contrasting melodies, textures, and moods can remain distinct even after they share a tonal home.",
+          "format": "paragraph",
+          "bullets": [],
+          "id": "796e0d6c1ab3e46bdaffb6ef"
+        }
+      ]
+    }
+  ],
+  "aiMs": 11733.6835,
+  "usage": {
+    "input_tokens": 12246,
+    "cached_input_tokens": 0,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 236,
+    "reasoning_output_tokens": 0
+  },
+  "planned": [
+    {
+      "id": "comparison",
+      "format": "bullets",
+      "plan": {
+        "from": 94,
+        "insert": "\n- In a major-key exposition, the contrasting theme commonly arrives in the dominant key, such as G major in a C-major sonata.\n- In a minor-key exposition, the contrasting theme often arrives in the relative major, such as E-flat major in a C-minor sonata, though the minor dominant is another possibility.\n- These are Classical-era conventions rather than fixed rules; composers can choose other tonal destinations for expressive or structural reasons.\n",
+        "remaining": [
+          0,
+          1,
+          2
+        ],
+        "alreadyAdded": false
+      }
+    },
+    {
+      "id": "mechanism",
+      "format": "paragraph",
+      "plan": {
+        "from": 171,
+        "insert": "\n\nThe recapitulation typically reworks the transition so that the contrasting theme returns in the tonic rather than the exposition’s secondary key. For example, a theme first heard in G major in a C-major sonata commonly returns in C major. The resolution concerns tonal stability, so contrasting melodies, textures, and moods can remain distinct even after they share a tonal home.\n",
+        "remaining": [
+          0
+        ],
+        "alreadyAdded": false
+      }
+    }
+  ]
+}

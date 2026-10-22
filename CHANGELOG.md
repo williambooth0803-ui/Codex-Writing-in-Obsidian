@@ -1,3 +1,12 @@
+# 1.0.4
+
+- Added note-ready feedback as 2–5 bullet points or a short explanatory paragraph, chosen to fit the material.
+- Added Add to note, individual-bullet Add, and Add all to note controls in hover cards.
+- Inserted additions below the reviewed source with Markdown list indentation and normal editor Undo support.
+- Prevented duplicate additions, refused stale/dismissed feedback and read-only edits, and baselined inserted AI text to avoid automatic self-review.
+- Kept legacy saved paragraph feedback addable without changing history or preferences.
+- Added eight checks for output validation, insertion placement, duplicate/partial additions, read-only notes, and real CodeMirror actions.
+
 # 1.0.3
 
 - Added a Run AI assistant button to each note header and a matching command for whole-note reviews on demand.

@@ -210,7 +210,19 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     const close=el('button','×','automatic-ai-close',header);close.setAttribute('aria-label','Close feedback');
     close.addEventListener('click',event=>{event.preventDefault();view.dispatch({effects:[this.openEffect.of(null),closeHoverTooltips]});view.focus();});
     el('q',range.comment.quote,'automatic-ai-quote');
-    el('p',range.comment.comment,'automatic-ai-body');
+    if(range.comment.format==='bullets'){
+      const list=el('ul','','automatic-ai-body automatic-ai-bullets');
+      this.core.feedbackItems(range.comment).forEach((text,index)=>{
+        const item=el('li','','automatic-ai-bullet',list);el('span',text,'automatic-ai-bullet-text',item);
+        const add=el('button','Add','automatic-ai-add-bullet',item);add.setAttribute('aria-label',`Add bullet ${index+1} to note`);
+        add.addEventListener('click',event=>{event.preventDefault();this.addFeedbackToNote(view,range,index);});
+        this.setAdditionButton(add,view,range,index);
+      });
+    }else el('p',range.comment.comment,'automatic-ai-body');
+    const actions=el('div','','automatic-ai-actions');
+    const add=el('button',range.comment.format==='bullets'?'Add all to note':'Add to note','automatic-ai-add',actions);
+    add.addEventListener('click',event=>{event.preventDefault();this.addFeedbackToNote(view,range);});
+    this.setAdditionButton(add,view,range);
     const footer=el('div','','automatic-ai-footer');
     el('span','AI feedback','automatic-ai-caption',footer);
     const dismiss=el('button','Dismiss','automatic-ai-dismiss',footer);
@@ -220,9 +232,37 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     });
     return dom;
   }
+  setAdditionButton(button,view,range,index=null){
+    button.setAttribute('title','Insert below this passage. Undo works normally.');
+    if(view.state.readOnly){button.disabled=true;button.title='This note is read-only.';return;}
+    try{
+      const plan=this.core.planNoteAddition(view.state.doc.toString(),range.result,range.comment,range.from,this.settings,index);
+      if(plan.alreadyAdded){button.disabled=true;button.textContent='Already in note';}
+    }catch{button.disabled=true;button.title='This passage changed. Reopen its feedback.';}
+  }
+  addFeedbackToNote(cm,range,index=null){
+    if(this.unloaded)return;
+    const native=this.findView(cm),result=this.loop.feedback.get(range.key);
+    if(!native?.file||native.file.path!==result?.file||!result.comments.some(c=>c.id===range.comment.id)){
+      new Notice('This feedback is no longer available. Reopen the passage.');return;
+    }
+    if(cm.state.readOnly){new Notice('This note is read-only.');return;}
+    try{
+      const comment=result.comments.find(c=>c.id===range.comment.id);
+      const plan=this.core.planNoteAddition(cm.state.doc.toString(),result,comment,range.from,this.settings,index);
+      if(plan.alreadyAdded){new Notice('This feedback is already in the note.');return;}
+      this.insertingFeedback=true;
+      try{
+        cm.dispatch({changes:{from:plan.from,to:plan.to,insert:plan.insert},userEvent:'input.ai-addition',effects:[this.openEffect.of(null),closeHoverTooltips]});
+        // Baseline additions before editor-change can queue another AI request for them.
+        this.loop.update(native.file.path,cm.state.doc.toString(),cm.state.selection.main.head,{baseline:true,explicit:true});
+      }finally{this.insertingFeedback=false;}
+      cm.focus();
+    }catch(error){new Notice(error.message);}
+  }
   findView(cm){return this.app.workspace.getLeavesOfType('markdown').map(leaf=>leaf.view).find(view=>view.editor?.cm===cm);}
   capture(editor,view){
-    if(this.unloaded||!view?.file)return;
+    if(this.unloaded||this.insertingFeedback||!view?.file)return;
     this.loop.update(view.file.path,editor.getValue(),editor.posToOffset(editor.getCursor()));
   }
   baselineOpenViews(){
@@ -302,7 +342,7 @@ class ReviewSettings extends PluginSettingTab {
     new Setting(this.containerEl).setName('Codex connection').setDesc(plugin.connection?.message||'Check the connection before enabling reviews.').addButton(button=>button.setButtonText('Check connection').onClick(async()=>{button.setDisabled(true);await plugin.verifyConnection();this.display();}));
     this.containerEl.createEl('p',{text:'Use Run AI assistant at the top of a note to review its existing text once, including headings and short bullets. This sends the note to Codex and uses account allowance. It also works while automatic reviews are paused.'});
     if(!plugin.settings.consentGranted)new Setting(this.containerEl).setName('Enable automatic feedback').setDesc('Completed passages and nearby prose from the same note will be sent to Codex using your existing sign-in. Account usage limits apply. Your note text will not be changed.').addButton(button=>button.setButtonText('Connect and enable').setCta().onClick(async()=>{button.setDisabled(true);await plugin.connectAndEnable();this.display();}));
-    this.containerEl.createEl('p',{text:'Write normally. Feedback appears as a subtle underline. Hover, click, or move your text cursor into the underlined passage to read it. Your Markdown stays unchanged.'});
+    this.containerEl.createEl('p',{text:'Write normally. Feedback appears as a subtle underline. Hover, click, or move your text cursor into the underlined passage to read it. Your Markdown changes only when you choose Add to note.'});
     const update=()=>plugin.applySettings();
     new Setting(this.containerEl).setName('Automatic reviews').setDesc('Pause or resume background reviews.').addToggle(toggle=>toggle.setValue(plugin.settings.enabled).onChange(value=>{
       if(value&&(!plugin.settings.consentGranted||!plugin.connection?.ready)){new Notice('Use Connect and enable, or check the Codex connection first.');this.display();return;}

@@ -34,3 +34,9 @@
 .automatic-ai-dismiss { font-size: 0.9em; padding: 3px 9px; height: auto; }
 .view-action.automatic-ai-run-button { width: auto; gap: 5px; padding: 4px 8px; font-size: var(--font-ui-small); white-space: nowrap; }
 .automatic-ai-run-disabled { opacity: 0.6; pointer-events: none; }
+
+.automatic-ai-bullets { padding-left: 20px; }
+.automatic-ai-bullet { margin: 7px 0; }
+.automatic-ai-add-bullet { margin-left: 8px; font-size: 0.85em; padding: 2px 7px; height: auto; }
+.automatic-ai-actions { margin: 10px 0; }
+.automatic-ai-add { font-size: 0.95em; height: auto; padding: 5px 10px; }

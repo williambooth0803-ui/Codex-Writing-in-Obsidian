@@ -4,16 +4,17 @@ Automatic Paragraph Review for desktop Obsidian.
 
 Automatic study feedback inside desktop Obsidian, using your existing local Codex sign-in. Write normally. Relevant passages receive a subtle dotted underline. Hover, click the underline, or move your text cursor into it to read the feedback. No recurring prompt or chat panel is required.
 
-The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
+The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback uses 2–5 concise note-style bullets when several distinct points fit, or a short paragraph when a connected explanation is clearer. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
 
-**Release: 1.0.3.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
+**Release: 1.0.4.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
 ## What is included
 
 - Hover popovers with individual dismissal and keyboard access.
-- Explanatory context and examples in two to five sentences; no quiz or study-question prompts.
+- Explanatory context and examples as 2–5 note-style bullets or a short paragraph; no study questions.
+- **Add to note** for a paragraph, **Add** for an individual bullet, or **Add all to note** for the group. Additions go below the source passage and support ordinary Undo.
 - Earlier saved question-style comments are hidden while their history and dismissals remain intact.
 - **Run AI assistant** button at the top of each note for a fresh whole-note review on demand.
 - Progress and a Stop button; whole-note review also works while automatic reviews are paused.
@@ -26,11 +27,17 @@ The default focus is **context and deeper understanding**. Hover comments add us
 - Configurable timing, batching, focus, optional standing preferences, and note restriction.
 - Pause/resume from the status bar, settings, or command palette.
 - Reported token totals and timing, plus timeouts and bounded retries for connection failures.
-- No AI-generated text is inserted into your Markdown.
+- AI-generated text is inserted only when you choose an Add button.
+
+## Add useful feedback to your notes
+
+Open a hover card. Feedback may be a short paragraph or 2–5 concise bullet points, chosen to suit the material. Use **Add to note** for a paragraph, **Add** beside a specific bullet, or **Add all to note** for the remaining group. Each action inserts real Markdown below the source passage in the current editor; it never replaces the source text. Additions beneath a list item are indented within that item. The plugin supplies Markdown structure and treats the generated content as plain text.
+
+Ordinary Obsidian Undo reverses an insertion. Feedback already present is disabled to prevent adding the same text again; undoing or removing it makes it available again. Stale or dismissed feedback cannot be inserted, and read-only notes disable Add controls. Added AI text is baselined locally so it does not automatically trigger another review of itself. Older saved paragraph feedback remains addable; use Run AI assistant for fresh suggestions in the new formats.
 
 ## Review the whole note on demand
 
-Click **Run AI assistant** in the note header, or use **Automatic Paragraph Review: Run AI assistant on the whole note** in the command palette. It reviews existing text again, including headings, short bullets, blockquotes, and tables. Long passages are split into smaller sections; repeated identical passages share one review. Frontmatter, fenced code, and hidden comments are excluded. Feedback appears in the same hover cards without rewriting the note.
+Click **Run AI assistant** in the note header, or use **Automatic Paragraph Review: Run AI assistant on the whole note** in the command palette. It reviews existing text again, including headings, short bullets, blockquotes, and tables. Long passages are split into smaller sections; repeated identical passages share one review. Frontmatter, fenced code, and hidden comments are excluded. Feedback appears in the same hover cards. Your note changes only when you choose an Add button.
 
 The button shows progress and becomes **Stop AI assistant** during a run. Completed feedback appears as each batch returns. Changed passages are skipped, and stopping keeps feedback already received. A failed batch stops the run; click Run again to retry. This action uses Codex allowance and explicitly reviews the current note even if its folder or filename is excluded from automatic reviews. It leaves those restrictions and automatic pause/resume settings unchanged.
 
@@ -82,7 +89,7 @@ Local feedback, source passage text, dismissals, settings, and aggregate usage m
 
 The plugin launches the installed Codex executable outside the vault and writes a schema-only temporary file in the operating system temporary directory, removing it after each completed or failed review. Note text is passed through the process input, not a temporary note file. The CLI uses its own authentication and runtime storage outside the vault (normally `~/.codex`); CLI-managed storage and network activity follow Codex settings and service behavior. The plugin adds no telemetry or direct network client.
 
-Requests use an ephemeral `codex exec` process, the CLI's default model and low reasoning, without user configuration. Shell execution, unified execution, connected apps, and web search are disabled for the review process; the sandbox is read-only. This version reviews the supplied text rather than researching sources or browsing your other notes. Timeout: 150 seconds. Automatic connection failures retry up to twice with increasing cooldown. Pausing automatic reviews cancels automatic work and clears its queue. Use **Stop AI assistant** to cancel a whole-note run.
+Requests use an ephemeral `codex exec` process, the CLI's default model and low reasoning, without user configuration. Shell execution, unified execution, connected apps, and web search are disabled for the review process; the sandbox is read-only. This version reviews the supplied text rather than researching sources or browsing your other notes. Clicking Add uses the saved feedback and makes no additional AI request. Timeout: 150 seconds. Automatic connection failures retry up to twice with increasing cooldown. Pausing automatic reviews cancels automatic work and clears its queue. Use **Stop AI assistant** to cancel a whole-note run.
 
 Stored history is bounded to 300 passage results and 4,000 reviewed passage identifiers. Automatic reviews skip very short fragments, ambiguous identical passages, and prose blocks above the configured maximum. Whole-note reviews include short fragments, share feedback across identical passages, and split long blocks. Feedback for notes beyond the history limit may replace earlier results. Persistent results are tied to the exact source passage; editing it removes outdated feedback and makes the changed passage eligible for a new review.
 
@@ -98,6 +105,8 @@ Runtime files are already built. Source and tests are included for inspection:
 - `tests/whole-note.test.js`: Whole-note batching, rereview, cancellation, edits, renames, and automatic queue coordination.
 - `benchmark.js`: Makes one real Codex request containing three synthetic passages.
 - `whole-note-benchmark.js`: Optional live check of explicit whole-note review while automatic reviews stay paused.
+- `addable-feedback-benchmark.js`: Optional live schema check of both bullet and paragraph feedback.
+- `tests/note-additions.test.js`: Source placement, list indentation, stale-source checks, and duplicate prevention.
 
 For development, use Node.js 24.15 or later and pnpm 11.25.0:
 
