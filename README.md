@@ -6,7 +6,7 @@ Automatic study feedback inside desktop Obsidian, using your existing local Code
 
 The default focus is **context and deeper understanding**. Hover comments add useful background, explain terms and mechanisms, connect ideas, and give concrete examples. They can enrich an already-correct note without requiring a mistake. Feedback uses 2–5 concise note-style bullets when several distinct points fit, or a short paragraph when a connected explanation is clearer. Feedback explains reasoning issues directly and does not ask study questions. It preserves shorthand and your voice. Uncertain factual details are flagged for verification, not presented as sourced fact checks.
 
-**Release: 1.0.5.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
+**Release: 1.0.6.** Available in the [Obsidian Community directory](https://community.obsidian.md/plugins/automatic-paragraph-review). Select **Add to Obsidian** on the listing to install it. Newly published entries can take up to 24 hours to reach in-app search; the manual ZIP is available immediately. The [GitHub release](https://github.com/williambooth0803-ui/Codex-Writing-in-Obsidian/releases/latest) also includes a manual-install ZIP.
 
 ![Hover feedback in Obsidian](images/hover-feedback.png)
 
@@ -93,6 +93,12 @@ Install from the [Community listing](https://community.obsidian.md/plugins/autom
 Feedback is available in editing / Live Preview mode. Requires **desktop Obsidian 1.13.7 or later**. Live-tested on macOS with Obsidian 1.13.7 and Codex CLI 0.163.0. Linux automated tests cover the engine and editor integration; other desktop operating systems have not been live-tested. Windows users may need a native `codex.exe` path. Mobile and Reading view are not supported.
 
 If setup reports signed out, run `codex login` in your terminal and check again. If it reports missing options, update the CLI from its official installation instructions. The plugin requires support for `exec --output-schema`, `--ignore-user-config`, and `--ephemeral`. A subscription or other account access that supports Codex is required; service limits apply. The plugin does not require you to configure a separate API key.
+
+## Startup and iCloud vaults
+
+Plugin startup does not wait for Codex discovery or sign-in checks. When automatic reviews are enabled and consent is already granted, connection checking starts in the background one second after the workspace layout is ready. When automatic reviews are paused, Codex is checked only when you explicitly use an AI action, resume reviews, or click Check connection. Concurrent requests share an ongoing connection check. Unloading the plugin cancels a deferred check and ignores late results.
+
+For vaults in iCloud Drive, keep the plugin folder downloaded locally. In Finder, locate `<vault>/.obsidian/plugins/automatic-paragraph-review`, Control-click it and select **Keep Downloaded**. This prevents startup from having to fetch its runtime or saved data from iCloud. See [Apple's instructions](https://support.apple.com/guide/mac-help/work-with-folders-and-files-in-icloud-drive-mchl1a02d711/mac). Downloading the files once restores them now; the persistent Finder setting is needed to prevent future eviction. This release does not change your system-wide iCloud storage preferences.
 
 ## Data and operation
 

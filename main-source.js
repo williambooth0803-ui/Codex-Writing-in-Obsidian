@@ -11,7 +11,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     const saved = await this.loadData() || {};
     this.settings = this.core.settingsWithDefaults(saved.settings || saved);
     if(saved.version===1&&saved.settings?.enabled)this.settings.consentGranted=true;
-    this.connection={ready:false,message:'Checking Codex connection…'};
+    this.connection={ready:false,checked:false,message:'Codex will be checked when you use AI.'};
     this.loop = new this.core.ReviewEngine(new this.core.CodexReviewer({
       binary:this.settings.codexPath,cwd:this.pluginRoot,timeoutMs:this.settings.timeoutMs
     }), this.settings, saved.state || {});
@@ -55,7 +55,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
       this.loop.renameFile(oldPath,file.path);this.baselineOpenViews();
     }));
     this.registerEvent(this.app.vault.on('delete',file=>this.loop.forgetFile(file.path)));
-    this.app.workspace.onLayoutReady(()=>this.baselineOpenViews());
+    this.app.workspace.onLayoutReady(()=>this.onWorkspaceReady());
     this.addCommand({id:'toggle-automatic-review',name:'Pause/resume automatic reviews',callback:()=>this.togglePaused()});
     this.addCommand({id:'run-ai-assistant',name:'Run AI assistant on the whole note',callback:()=>this.runCurrentNote()});
     this.addCommand({id:'review-selection',name:'Review selected text with AI',editorCallback:(_,view)=>this.runCurrentNote(view,{selectionOnly:true})});
@@ -73,19 +73,31 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     }});
     this.addSettingTab(new ReviewSettings(this.app,this));
     this.updateStatus();
-    await this.verifyConnection();
   }
-  async verifyConnection(){
-    const generation=(this.connectionGeneration||0)+1;this.connectionGeneration=generation;
-    this.connection={ready:false,message:'Checking Codex connection…'};this.updateStatus();
-    const result=await this.core.discoverCodex(this.settings.codexPath);
-    if(this.unloaded||generation!==this.connectionGeneration)return result;
-    this.connection=result;
-    if(result.ready){
-      this.loop.reviewer.binary=result.binary;
-      if(this.settings.enabled&&this.settings.consentGranted)this.loop.setPaused(false);
-    }else this.loop.setPaused(true);
-    this.persist();this.updateStatus();return result;
+  onWorkspaceReady(){
+    if(this.unloaded)return;
+    this.baselineOpenViews();
+    if(this.settings.enabled&&this.settings.consentGranted&&!this.connection.checked&&!this.connectionTask){
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer=setTimeout(()=>{this.connectionTimer=null;if(!this.unloaded)this.verifyConnection();},1000);
+    }
+  }
+  verifyConnection(){
+    const binary=this.settings.codexPath;
+    if(this.connectionTask&&this.connectionPath===binary)return this.connectionTask;
+    clearTimeout(this.connectionTimer);this.connectionTimer=null;
+    const generation=(this.connectionGeneration||0)+1;this.connectionGeneration=generation;this.connectionPath=binary;
+    this.connection={ready:false,checked:false,checking:true,message:'Checking Codex connection…'};this.updateStatus();
+    const task=Promise.resolve().then(()=>this.core.discoverCodex(binary)).catch(()=>({ready:false,message:'Codex connection check failed. Try Check connection in settings.'})).then(result=>{
+      if(this.unloaded||generation!==this.connectionGeneration)return result;
+      this.connection={...result,checked:true,checking:false};
+      if(result.ready){
+        this.loop.reviewer.binary=result.binary;
+        if(this.settings.enabled&&this.settings.consentGranted)this.loop.setPaused(false);
+      }else this.loop.setPaused(true);
+      this.persist();this.updateStatus();return result;
+    }).finally(()=>{if(this.connectionTask===task)this.connectionTask=null;});
+    this.connectionTask=task;return task;
   }
   async connectAndEnable(){
     const result=await this.verifyConnection();
@@ -323,7 +335,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     if(this.unloaded)return;
     this.updateRunButtons();
     const count=this.loop.pending.size;
-    let message=!this.connection?.ready?'AI feedback: setup needed':!this.settings.consentGranted?'AI feedback: enable in settings':this.loop.paused?'AI feedback: paused':this.loop.busy?'AI feedback: reviewing…':
+    let message=this.connection?.checking?'AI feedback: checking connection…':this.connection?.checked&&!this.connection.ready?'AI feedback: setup needed':!this.settings.consentGranted?'AI feedback: enable in settings':this.loop.paused?(this.settings.enabled&&!this.connection?.checked?'AI feedback: starting…':'AI feedback: paused'):this.loop.busy?'AI feedback: reviewing…':
       this.loop.lastError?'AI feedback: connection needs attention':count?`AI feedback: ${count} queued`:'AI feedback: ready';
     if(this.connection?.ready&&!this.loop.paused&&!this.loop.busy&&!count&&!this.loop.lastError&&this.loop.metrics.lastTotalMs)
       message=`AI feedback: ${(this.loop.metrics.lastTotalMs/1000).toFixed(1)}s last review`;
@@ -331,9 +343,9 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     this.status.setText(message);
     this.status.setAttribute('aria-label',message+'. Click to pause or resume.');
   }
-  togglePaused(){
+  async togglePaused(){
     if(!this.settings.consentGranted){new Notice('Open Automatic Paragraph Review settings and choose Connect and enable to start automatic reviews.');return;}
-    if(!this.connection?.ready){new Notice(this.connection?.message||'Check the Codex connection in plugin settings.');return;}
+    if(!this.connection?.ready){const result=await this.verifyConnection();if(this.unloaded)return;if(!result.ready){new Notice(result.message);return;}}
     this.settings.enabled=!this.settings.enabled;this.loop.setPaused(!this.settings.enabled);
     this.baselineOpenViews();this.persist();this.updateStatus();
   }
@@ -356,7 +368,7 @@ module.exports = class AutomaticParagraphReview extends Plugin {
     return this.saveChain;
   }
   async onunload(){
-    this.unloaded=true;clearTimeout(this.saveTimer);
+    this.unloaded=true;this.connectionGeneration=(this.connectionGeneration||0)+1;clearTimeout(this.connectionTimer);clearTimeout(this.saveTimer);
     for(const timer of this.refreshTimers.values())clearTimeout(timer);
     for(const timer of this.captureTimers.values())clearTimeout(timer);
     this.questionModal?.close();

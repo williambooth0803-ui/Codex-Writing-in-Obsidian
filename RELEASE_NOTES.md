@@ -1,11 +1,12 @@
-Version 1.0.5 adds **Review selection** and **Ask about this note**.
+Version 1.0.6 fixes unnecessary waiting during Obsidian startup.
 
-- Highlight text to change the main button to Review selection. The request includes only eligible highlighted text, including partial paragraphs. The editor right-click menu and command palette also offer selection review.
-- Use the speech-bubble action to ask a specific question. Choose selected text or the whole note as context; the dialog shows the amount sent before submission.
-- Answers use the note context and general knowledge, with paragraph/bullet formatting and Add controls. They do not browse or claim external verification.
-- Questions share the existing request queue and can be stopped. Closing the dialog stops its pending question. Automatic review settings stay unchanged.
-- Question context is capped at 60,000 characters; larger contexts require a smaller selection. Frontmatter, fenced code, and hidden comments are omitted.
-- Latest answers remain available in memory for the plugin session when context matches. Add an answer to keep it in the note across restarts.
-- All 47 automated checks pass. Live synthetic tests took 8.82 seconds for selection feedback and 7.80 seconds for a specific question; timing varies with context and service load.
+- Plugin loading no longer waits for Codex executable, help, or sign-in checks.
+- Enabled automatic reviews check their connection in the background after the workspace is ready.
+- Paused installations perform no startup CLI check. Explicit AI actions still check the connection when needed.
+- Concurrent checks share one task; delayed results cannot resume an unloaded plugin.
+- Notes without feedback avoid unnecessary parsing.
+- All 52 tests pass, including startup with a deliberately non-resolving connection check, deferred automatic startup, explicit on-demand use, failures, and unload behavior.
 
-The three runtime files remain main.js, manifest.json, and styles.css. Requires desktop Obsidian 1.13.7+ and an installed, signed-in Codex CLI. AI requests use account allowance. Note text changes only when you choose an Add control. Native UI validation is deferred to avoid interrupting the user's active Obsidian session.
+For iCloud vaults, use Finder's Keep Downloaded on the plugin folder so runtime files and saved data stay local. The code fix removes the CLI startup wait; it cannot prevent a cloud provider from evicting plugin files before Obsidian can read them. This update preserves saved settings and feedback.
+
+Desktop Obsidian 1.13.7+ and a separately installed, signed-in Codex CLI are required for AI features. Reviews use account allowance. The three runtime files remain main.js, manifest.json and styles.css.

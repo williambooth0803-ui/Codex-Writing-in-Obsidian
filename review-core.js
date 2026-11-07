@@ -141,6 +141,7 @@ function isQuestionFeedback(comment) {
   return comment.category === 'question' || /[?？]/.test([comment.comment || '',...(Array.isArray(comment.bullets)?comment.bullets:[])].join(' '));
 }
 function feedbackRanges(text, results, settings = DEFAULTS) {
+  if(!results.length)return [];
   const parsed = blocks(text, settings), whole = results.some(r => r.manual) ? wholeNoteBlocks(text, settings) : [], ranges = [];
   for (const result of results) {
     const matches = result.paragraph.selected?resolveSelected(text,result.paragraph,settings):(result.manual ? whole : parsed).filter(candidate => candidate.id === result.paragraph.id);
@@ -390,7 +391,8 @@ class ReviewEngine extends EventEmitter {
     if (this.stopped || (!allowed && !explicit && this.manualRun?.file !== file && ![...this.feedback.values()].some(r=>r.file===file&&r.manual))) return;
     const now = performance.now(), parsed = blocks(text,this.settings), prior = this.notes.get(file);
     this.notes.set(file,{ text,cursor,blocks:parsed });
-    const exists = new Set(parsed.map(b => b.id)), manualExists = new Set(wholeNoteBlocks(text,this.settings).map(b=>b.id));
+    const exists = new Set(parsed.map(b => b.id));
+    const manualExists = [...this.feedback.values()].some(r=>r.file===file&&r.manual&&!r.paragraph.selected)?new Set(wholeNoteBlocks(text,this.settings).map(b=>b.id)):null;
     for (const [key,result] of this.feedback) if (result.file === file && !(result.paragraph.selected?resolveSelected(text,result.paragraph,this.settings).length:(result.manual?manualExists:exists).has(result.paragraph.id))) this.feedback.delete(key);
     for (const [key,job] of this.pending) if (job.file === file && !exists.has(job.paragraph.id)) this.pending.delete(key);
     for (const b of parsed) {

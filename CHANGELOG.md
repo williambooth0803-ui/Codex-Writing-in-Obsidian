@@ -1,3 +1,12 @@
+# 1.0.6
+
+- Removed Codex discovery/sign-in checks from the awaited startup path.
+- Deferred enabled automatic reviews' connection check until after workspace readiness; paused installations check only on explicit use.
+- Shared in-flight connection checks and handled discovery failures without rejecting plugin startup.
+- Cancelled scheduled checks and ignored late discovery results after unload.
+- Avoided Markdown parsing when there is no feedback to render, and skipped whole-note extraction when no saved manual result requires it.
+- Added startup regression checks and documented keeping iCloud plugin files downloaded locally.
+
 # 1.0.5
 
 - Added selection-only review from the note header, editor context menu, and command palette, including partial paragraphs.

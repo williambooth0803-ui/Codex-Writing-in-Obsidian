@@ -96,3 +96,12 @@ All 47 automated checks pass. Twelve new checks cover exact partial selection ex
 Two real Codex requests used only synthetic note text: an explicit selection review completed in 8.82 seconds and a specific question about tonal resolution completed in 7.80 seconds. Automatic reviews remained paused. Full inputs, outputs, selected boundaries, usage, and timings are in `selection-question-benchmark-results-1.0.5.json`.
 
 The user previously requested staged updates for the next Obsidian restart while taking notes. This release is installed without reloading the active plugin, changing saved data, or interacting with the current note. Native selection/menu/modal behavior has not been live-tested; real CodeMirror tests and the live Codex engine checks provide the validation above.
+
+
+## Release 1.0.6 startup checks
+
+The installed 1.0.5 runtime files were observed as compressed/dataless iCloud placeholders, which can require downloading before Obsidian reads them. Saved data was also observed as a placeholder on the resumed investigation. Independently, onload awaited Codex discovery even for paused installations, putting executable/help/sign-in checks on the startup path. These are confirmed conditions and plausible contributors; no complete before/after Obsidian startup timing was captured.
+
+All 52 automated checks pass. Five new checks confirm that startup resolves even when discovery deliberately never resolves, paused installations do not discover at startup, enabled checking begins only after layout readiness and a deferred timer, explicit use shares the check, on-demand review still works, unload cancels pending startup work and ignores late results, and discovery failure is reported safely. Test timings are fixture timings, not whole-application startup measurements. Existing engine, real CodeMirror, selected-text, question, insertion, and release tests continue to pass.
+
+Empty-feedback rendering returns before parsing the note. The engine no longer extracts whole-note blocks solely for cleanup when no saved manual feedback needs them. Runtime files are restored locally during installation; Finder Keep Downloaded remains necessary to prevent future iCloud eviction. Obsidian is not closed or restarted by this update.
